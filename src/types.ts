@@ -42,6 +42,13 @@ export interface Alarm {
   mode?: AlarmMode;
 }
 
-export type ThemeName = "pink" | "green" | "blue" | "yellow" | "purple";
+export type ThemeName =
+  | "pink"
+  | "green"
+  | "blue"
+  | "yellow"
+  | "purple"
+  | "white"
+  | "dark";
 
 export type AlarmMode = "alarm" | "stopwatch";

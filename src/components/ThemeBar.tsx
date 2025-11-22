@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import type { ThemeName } from "../types";
 
 const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
+  { id: "white", label: "White", swatch: "#ffffff" },
   { id: "green", label: "Mint green", swatch: "#bbf7d0" },
   { id: "blue", label: "Sky blue", swatch: "#bae6fd" },
   { id: "yellow", label: "Butter yellow", swatch: "#fef08a" },
   { id: "purple", label: "Lavender", swatch: "#ddd6fe" },
-  { id: "pink", label: "Blush pink", swatch: "#fecdd3" }
+  { id: "pink", label: "Blush pink", swatch: "#fecdd3" },
+  { id: "dark", label: "Dark", swatch: "#202024" }
 ];
 
 interface Props {

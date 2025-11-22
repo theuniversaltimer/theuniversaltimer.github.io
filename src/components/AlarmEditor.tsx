@@ -288,20 +288,6 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex gap-2 items-center">
             <span className="text-xs text-accent-400">Repeat</span>
-            <select
-              className="soft-input max-w-[120px]"
-              value={b.repeat === -1 ? "forever" : "count"}
-              onChange={(e) => {
-                const mode = e.target.value;
-                handleChange(block.id, (prev) => ({
-                  ...(prev as LoopBlock),
-                  repeat: mode === "forever" ? -1 : Math.max(1, Number((prev as LoopBlock).repeat) || 1)
-                }));
-              }}
-            >
-              <option value="count">Times</option>
-              <option value="forever">Forever</option>
-            </select>
             {b.repeat !== -1 && (
               <>
                 <input
@@ -319,9 +305,22 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
                 <span className="text-xs text-accent-400">times</span>
               </>
             )}
-            {b.repeat === -1 && (
-              <span className="text-xs text-accent-400">forever</span>
-            )}
+            <label className="flex items-center gap-1 text-xs text-accent-400 ml-auto pr-2 select-none">
+              <input
+                type="checkbox"
+                checked={b.repeat === -1}
+                onChange={(e) =>
+                  handleChange(block.id, (prev) => ({
+                    ...(prev as LoopBlock),
+                    repeat: e.target.checked
+                      ? -1
+                      : Math.max(1, Number((prev as LoopBlock).repeat) || 1)
+                  }))
+                }
+                className="accent-accent-500 h-4 w-4"
+              />
+              <span>Forever</span>
+            </label>
           </div>
 
           {empty && (

@@ -155,15 +155,15 @@ body {
 }
 
 .text-accent-500 {
-  color: rgb(var(--accent-500));
+  color: rgb(var(--accent-600));
 }
 
 .text-accent-400 {
-  color: rgb(var(--accent-400));
+  color: rgb(var(--accent-600));
 }
 
 .text-accent-300 {
-  color: rgb(var(--accent-300));
+  color: rgb(var(--accent-500));
 }
 
 .bg-accent-50 {
@@ -226,7 +226,7 @@ body {
   @apply rounded-2xl bg-white/70 border;
   border-color: rgb(var(--accent-100));
   box-shadow: 0 10px 25px rgba(var(--shadow-soft), 0.35);
-  color: rgb(var(--accent-600));
+  color: rgb(var(--accent-700));
 }
 
 [data-theme="dark"] .pastel-card {
@@ -291,12 +291,36 @@ body {
   @apply w-full rounded-xl bg-white/70 px-3 py-2 text-sm focus:outline-none transition-all;
   border: 1px solid rgb(var(--accent-100));
   box-shadow: 0 1px 2px rgba(var(--shadow-soft), 0.15);
+  color: rgb(var(--accent-600));
+  appearance: none;
 }
 
 .soft-input:focus {
   border-color: rgb(var(--accent-300));
   box-shadow: 0 0 0 2px rgba(var(--accent-300), 0.45),
     0 10px 25px rgba(var(--shadow-soft), 0.25);
+}
+
+.soft-input option {
+  color: rgb(var(--accent-600));
+  background-color: rgb(var(--accent-50));
+}
+
+[data-theme="dark"] .soft-input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .soft-input:focus {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2),
+    0 10px 25px rgba(var(--shadow-soft), 0.25);
+}
+
+[data-theme="dark"] .soft-input option {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgb(34, 34, 38);
 }
 
 [data-theme="dark"] .soft-input {
