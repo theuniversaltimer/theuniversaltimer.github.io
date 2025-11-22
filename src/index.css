@@ -77,6 +77,39 @@
   --shadow-soft: 233, 213, 255;
 }
 
+[data-theme="white"] {
+  --accent-50: 255, 255, 255;
+  --accent-100: 243, 244, 246;
+  --accent-200: 229, 231, 235;
+  --accent-300: 209, 213, 219;
+  --accent-400: 156, 163, 175;
+  --accent-500: 107, 114, 128;
+  --accent-600: 75, 85, 99;
+  --accent-700: 55, 65, 81;
+  --gradient-from: 255, 255, 255;
+  --gradient-via: 245, 246, 248;
+  --gradient-to: 234, 236, 240;
+  --shadow-soft: 209, 213, 219;
+}
+
+[data-theme="dark"] {
+  --accent-50: 32, 32, 36;
+  --accent-100: 46, 46, 52;
+  --accent-200: 69, 69, 78;
+  --accent-300: 96, 96, 110;
+  --accent-400: 200, 200, 210;
+  --accent-500: 225, 225, 235;
+  --accent-600: 240, 240, 245;
+  --accent-700: 255, 255, 255;
+  --gradient-from: 28, 28, 32;
+  --gradient-via: 38, 38, 44;
+  --gradient-to: 52, 52, 60;
+  --shadow-soft: 96, 96, 110;
+  --accent-card-bg: rgba(40, 40, 46, 0.9);
+  --accent-button-bg: 64, 64, 72;
+  --accent-button-bg-hover: 88, 88, 100;
+}
+
 [data-theme="pink"] {
   --accent-50: 255, 241, 245;
   --accent-100: 255, 224, 235;
@@ -103,6 +136,10 @@ body {
   transition: background 0.35s ease, color 0.2s ease;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", sans-serif;
+}
+
+[data-theme="dark"] body {
+  @apply text-white;
 }
 
 .app-shell {
@@ -189,6 +226,13 @@ body {
   @apply rounded-2xl bg-white/70 border;
   border-color: rgb(var(--accent-100));
   box-shadow: 0 10px 25px rgba(var(--shadow-soft), 0.35);
+  color: rgb(var(--accent-600));
+}
+
+[data-theme="dark"] .pastel-card {
+  background-color: var(--accent-card-bg, rgba(255,255,255,0.7));
+  border-color: rgb(var(--accent-200));
+  color: rgb(var(--accent-500));
 }
 
 .pastel-hover {
@@ -209,6 +253,14 @@ body {
   background-color: rgb(var(--accent-400));
 }
 
+[data-theme="dark"] .soft-button-primary {
+  background-color: rgb(var(--accent-button-bg));
+}
+
+[data-theme="dark"] .soft-button-primary:hover {
+  background-color: rgb(var(--accent-button-bg-hover));
+}
+
 .soft-button-primary:hover {
   background-color: rgb(var(--accent-500));
   box-shadow: 0 10px 30px rgba(var(--shadow-soft), 0.45);
@@ -217,6 +269,17 @@ body {
 .soft-button-ghost {
   @apply soft-button bg-white/70;
   color: rgb(var(--accent-500));
+}
+
+[data-theme="dark"] .soft-button-ghost {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgb(var(--accent-500));
+  border: 1px solid rgba(var(--accent-200), 0.6);
+}
+
+[data-theme="dark"] .soft-button-ghost:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 6px 16px rgba(var(--shadow-soft), 0.25);
 }
 
 .soft-button-ghost:hover {
@@ -233,6 +296,18 @@ body {
 .soft-input:focus {
   border-color: rgb(var(--accent-300));
   box-shadow: 0 0 0 2px rgba(var(--accent-300), 0.45),
+    0 10px 25px rgba(var(--shadow-soft), 0.25);
+}
+
+[data-theme="dark"] .soft-input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgb(var(--accent-600));
+}
+
+[data-theme="dark"] .soft-input:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18),
     0 10px 25px rgba(var(--shadow-soft), 0.25);
 }
 
