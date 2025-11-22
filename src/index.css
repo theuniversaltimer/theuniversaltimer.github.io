@@ -1,0 +1,263 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent-50: 255, 241, 245;
+  --accent-100: 255, 224, 235;
+  --accent-200: 248, 187, 208;
+  --accent-300: 244, 142, 170;
+  --accent-400: 244, 114, 182;
+  --accent-500: 236, 72, 153;
+  --accent-600: 219, 39, 119;
+  --accent-700: 190, 24, 93;
+  --gradient-from: 255, 241, 245;
+  --gradient-via: 255, 247, 241;
+  --gradient-to: 254, 243, 199;
+  --shadow-soft: 248, 187, 208;
+}
+
+[data-theme="green"] {
+  --accent-50: 236, 253, 245;
+  --accent-100: 209, 250, 229;
+  --accent-200: 167, 243, 208;
+  --accent-300: 110, 231, 183;
+  --accent-400: 52, 211, 153;
+  --accent-500: 16, 185, 129;
+  --accent-600: 5, 150, 105;
+  --accent-700: 4, 120, 87;
+  --gradient-from: 236, 253, 245;
+  --gradient-via: 220, 246, 236;
+  --gradient-to: 206, 238, 224;
+  --shadow-soft: 167, 243, 208;
+}
+
+[data-theme="blue"] {
+  --accent-50: 240, 249, 255;
+  --accent-100: 224, 242, 254;
+  --accent-200: 186, 230, 253;
+  --accent-300: 125, 211, 252;
+  --accent-400: 56, 189, 248;
+  --accent-500: 14, 165, 233;
+  --accent-600: 2, 132, 199;
+  --accent-700: 3, 105, 161;
+  --gradient-from: 240, 249, 255;
+  --gradient-via: 223, 240, 252;
+  --gradient-to: 206, 231, 247;
+  --shadow-soft: 186, 230, 253;
+}
+
+[data-theme="yellow"] {
+  --accent-50: 255, 251, 235;
+  --accent-100: 254, 243, 199;
+  --accent-200: 253, 230, 138;
+  --accent-300: 252, 211, 77;
+  --accent-400: 251, 191, 36;
+  --accent-500: 245, 158, 11;
+  --accent-600: 217, 119, 6;
+  --accent-700: 180, 83, 9;
+  --gradient-from: 255, 251, 235;
+  --gradient-via: 253, 242, 206;
+  --gradient-to: 249, 230, 170;
+  --shadow-soft: 253, 230, 138;
+}
+
+[data-theme="purple"] {
+  --accent-50: 250, 245, 255;
+  --accent-100: 243, 232, 255;
+  --accent-200: 233, 213, 255;
+  --accent-300: 216, 180, 254;
+  --accent-400: 192, 132, 252;
+  --accent-500: 168, 85, 247;
+  --accent-600: 147, 51, 234;
+  --accent-700: 126, 34, 206;
+  --gradient-from: 250, 245, 255;
+  --gradient-via: 238, 230, 255;
+  --gradient-to: 228, 216, 250;
+  --shadow-soft: 233, 213, 255;
+}
+
+[data-theme="pink"] {
+  --accent-50: 255, 241, 245;
+  --accent-100: 255, 224, 235;
+  --accent-200: 248, 187, 208;
+  --accent-300: 244, 142, 170;
+  --accent-400: 244, 114, 182;
+  --accent-500: 236, 72, 153;
+  --accent-600: 219, 39, 119;
+  --accent-700: 190, 24, 93;
+  --gradient-from: 255, 241, 245;
+  --gradient-via: 255, 247, 241;
+  --gradient-to: 254, 243, 199;
+  --shadow-soft: 248, 187, 208;
+}
+
+body {
+  @apply text-slate-900;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--gradient-from)),
+    rgb(var(--gradient-via)),
+    rgb(var(--gradient-to))
+  );
+  transition: background 0.35s ease, color 0.2s ease;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+}
+
+.app-shell {
+  @apply min-h-screen flex flex-col items-center justify-start p-4 sm:p-8;
+}
+
+.text-accent-700 {
+  color: rgb(var(--accent-700));
+}
+
+.text-accent-600 {
+  color: rgb(var(--accent-600));
+}
+
+.text-accent-500 {
+  color: rgb(var(--accent-500));
+}
+
+.text-accent-400 {
+  color: rgb(var(--accent-400));
+}
+
+.text-accent-300 {
+  color: rgb(var(--accent-300));
+}
+
+.bg-accent-50 {
+  background-color: rgb(var(--accent-50));
+}
+
+.bg-accent-50-60 {
+  background-color: rgba(var(--accent-50), 0.6);
+}
+
+.bg-accent-50-70 {
+  background-color: rgba(var(--accent-50), 0.7);
+}
+
+.bg-accent-50-90 {
+  background-color: rgba(var(--accent-50), 0.9);
+}
+
+.bg-accent-100 {
+  background-color: rgb(var(--accent-100));
+}
+
+.bg-accent-200 {
+  background-color: rgb(var(--accent-200));
+}
+
+.bg-accent-300 {
+  background-color: rgb(var(--accent-300));
+}
+
+.bg-accent-400 {
+  background-color: rgb(var(--accent-400));
+}
+
+.bg-accent-500 {
+  background-color: rgb(var(--accent-500));
+}
+
+.bg-accent-700 {
+  background-color: rgb(var(--accent-700));
+}
+
+.border-accent-100 {
+  border-color: rgb(var(--accent-100));
+}
+
+.border-accent-300 {
+  border-color: rgb(var(--accent-300));
+}
+
+.shadow-accent-soft {
+  box-shadow: 0 10px 30px rgba(var(--shadow-soft), 0.45);
+}
+
+.shadow-accent-faint {
+  box-shadow: 0 2px 8px rgba(var(--shadow-soft), 0.18);
+}
+
+.pastel-card {
+  @apply rounded-2xl bg-white/70 border;
+  border-color: rgb(var(--accent-100));
+  box-shadow: 0 10px 25px rgba(var(--shadow-soft), 0.35);
+}
+
+.pastel-hover {
+  @apply transition-transform transition-shadow duration-200 ease-out;
+}
+
+.pastel-hover:hover {
+  transform: scale(1.01);
+  box-shadow: 0 10px 30px rgba(var(--shadow-soft), 0.45);
+}
+
+.soft-button {
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200;
+}
+
+.soft-button-primary {
+  @apply soft-button text-white;
+  background-color: rgb(var(--accent-400));
+}
+
+.soft-button-primary:hover {
+  background-color: rgb(var(--accent-500));
+  box-shadow: 0 10px 30px rgba(var(--shadow-soft), 0.45);
+}
+
+.soft-button-ghost {
+  @apply soft-button bg-white/70;
+  color: rgb(var(--accent-500));
+}
+
+.soft-button-ghost:hover {
+  background-color: rgba(var(--accent-50), 0.9);
+  box-shadow: 0 6px 16px rgba(var(--shadow-soft), 0.25);
+}
+
+.soft-input {
+  @apply w-full rounded-xl bg-white/70 px-3 py-2 text-sm focus:outline-none transition-all;
+  border: 1px solid rgb(var(--accent-100));
+  box-shadow: 0 1px 2px rgba(var(--shadow-soft), 0.15);
+}
+
+.soft-input:focus {
+  border-color: rgb(var(--accent-300));
+  box-shadow: 0 0 0 2px rgba(var(--accent-300), 0.45),
+    0 10px 25px rgba(var(--shadow-soft), 0.25);
+}
+
+.soft-glow {
+  box-shadow: 0 0 0 2px rgba(var(--accent-400), 0.7),
+    0 10px 25px rgba(var(--shadow-soft), 0.35);
+}
+
+.soft-glow.pastel-hover:hover {
+  box-shadow: 0 0 0 2px rgba(var(--accent-400), 0.7),
+    0 10px 30px rgba(var(--shadow-soft), 0.45);
+}
+
+.drag-hover {
+  box-shadow: 0 0 0 2px rgba(var(--accent-300), 1),
+    0 0 0 6px rgba(var(--accent-50), 1);
+}
+
+.block-chip {
+  @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium;
+  background-color: rgba(var(--accent-50), 0.9);
+  color: rgb(var(--accent-500));
+}
+
+.block-chip-label {
+  @apply text-[11px] uppercase tracking-wide;
+  color: rgb(var(--accent-400));
+}

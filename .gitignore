@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+dist-esbuild
+*.log
+
+# Neutralino/TEMP resources
+resources
+
+# Editor/system files
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!/.vscode/extensions.json
