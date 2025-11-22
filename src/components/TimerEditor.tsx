@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import type {
-  Alarm,
-  AlarmMode,
+  Timer,
+  TimerMode,
   Block,
   BlockType,
   LoopBlock,
@@ -13,9 +13,9 @@ import { createId } from "../utils/ids";
 import { sanitizeTimeInput } from "../utils/time";
 
 interface Props {
-  alarm: Alarm;
+  timer: Timer;
   onBack: () => void;
-  onSave: (alarm: Alarm) => void;
+  onSave: (timer: Timer) => void;
   activeBlockId?: string | null;
 }
 
@@ -23,7 +23,7 @@ type DragPayload =
   | { kind: "palette"; blockType: BlockType }
   | { kind: "existing"; blockId: string };
 
-const DND_TYPE = "application/x-alarm-block";
+const DND_TYPE = "application/x-timer-block";
 
 const createDefaultBlock = (type: BlockType): Block => {
   switch (type) {
@@ -48,6 +48,14 @@ const createDefaultBlock = (type: BlockType): Block => {
         soundType: "default",
         label: "Alarm"
       };
+    case "notify":
+      return {
+        id: createId(),
+        type: "notify",
+        title: "Reminder",
+        body: "Your timer is running.",
+        children: []
+      };
     case "loop":
     default:
       return {
@@ -66,7 +74,7 @@ function updateBlockTree(
 ): Block[] {
   return blocks.map((b) => {
     if (b.id === id) return updater(b);
-    if (b.type === "loop") {
+    if (b.type === "loop" || b.type === "notify") {
       return {
         ...(b as LoopBlock),
         children: updateBlockTree((b as LoopBlock).children, id, updater)
@@ -80,7 +88,7 @@ function deleteBlockTree(blocks: Block[], id: string): Block[] {
   const result: Block[] = [];
   for (const b of blocks) {
     if (b.id === id) continue;
-    if (b.type === "loop") {
+    if (b.type === "loop" || b.type === "notify") {
       result.push({
         ...(b as LoopBlock),
         children: deleteBlockTree((b as LoopBlock).children, id)
@@ -108,7 +116,7 @@ function insertRelative(
         result.push(newBlock, b);
       } else if (position === "after") {
         result.push(b, newBlock);
-      } else if (position === "inside" && b.type === "loop") {
+      } else if (position === "inside" && (b.type === "loop" || b.type === "notify")) {
         result.push({
           ...(b as LoopBlock),
           children: [...(b as LoopBlock).children, newBlock]
@@ -164,10 +172,10 @@ function moveBlock(
   return insertRelative(without, targetId, movingBlock, position);
 }
 
-const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
-  const [draft, setDraft] = useState<Alarm>(() => ({
-    ...alarm,
-    mode: (alarm as any).mode ?? "stopwatch"
+const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave }) => {
+  const [draft, setDraft] = useState<Timer>(() => ({
+    ...timer,
+    mode: (timer as any).mode ?? "stopwatch"
   }));
   const [nameEdited, setNameEdited] = useState(false);
   const [dragHoverId, setDragHoverId] = useState<string | null>(null);
@@ -256,7 +264,8 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
       { type: "loop" as BlockType, label: "Loop", desc: "Repeat blocks" },
       { type: "wait" as BlockType, label: "Wait", desc: "Pause duration" },
       { type: "waitUntil" as BlockType, label: "Wait Until", desc: "Pause until time" },
-      { type: "playSound" as BlockType, label: "Play Sound", desc: "Play audio" }
+      { type: "playSound" as BlockType, label: "Play Sound", desc: "Play audio" },
+      { type: "notify" as BlockType, label: "Notify", desc: "Show a notification" }
     ],
     []
   );
@@ -642,17 +651,152 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
       );
     };
 
+    const notifyUi = () => {
+      const b = block as any;
+      const children: Block[] = b.children || [];
+      const hasChildren = children.length > 0;
+      return (
+        <div className="flex flex-col gap-3 mt-2">
+          <div className="flex flex-col gap-2">
+            <input
+              className="soft-input"
+              placeholder="Notification title"
+              value={b.title || ""}
+              onChange={(e) =>
+                handleChange(block.id, (prev) => ({
+                  ...(prev as any),
+                  title: e.target.value.slice(0, 50)
+                }))
+              }
+            />
+            <textarea
+              className="soft-input min-h-[70px]"
+              placeholder="Notification message"
+              value={b.body || ""}
+              onChange={(e) =>
+                handleChange(block.id, (prev) => ({
+                  ...(prev as any),
+                  body: e.target.value.slice(0, 140)
+                }))
+              }
+            />
+            <p className="text-[11px] text-accent-400">
+              Foreground only: waits for click or 10 seconds, then continues. Drag blocks below to
+              loop while it is visible.
+            </p>
+          </div>
+          <div className="flex flex-col">
+            {hasChildren ? (
+              <>
+                <div
+                  className="relative h-5 my-0"
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes(DND_TYPE)) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragHoverId(block.id + "_top");
+                    setDragPosition("inside");
+                    setDragInsideLoopId(null);
+                  }}
+                  onDragLeave={(e) => {
+                    e.stopPropagation();
+                    clearDrag();
+                  }}
+                  onDrop={(e) => {
+                    handleDropOnBlock(children[0].id, "before")(e);
+                  }}
+                >
+                  {dragHoverId === block.id + "_top" && dragPosition === "inside" && (
+                    <div
+                      className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-[3px] rounded-full"
+                      style={{
+                        backgroundColor: "rgba(var(--accent-400), 0.55)",
+                        boxShadow: "0 2px 8px rgba(var(--shadow-soft), 0.2)"
+                      }}
+                    />
+                  )}
+                </div>
+                {children.map((child) => (
+                  <React.Fragment key={child.id}>
+                    {renderBlock(child, depth + 1, true)}
+                    <div
+                      className="relative h-5 my-0"
+                      onDragOver={(e) => {
+                        if (!e.dataTransfer.types.includes(DND_TYPE)) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDragHoverId(child.id + "_after");
+                        setDragPosition("inside");
+                        setDragInsideLoopId(null);
+                      }}
+                      onDragLeave={(e) => {
+                        e.stopPropagation();
+                        clearDrag();
+                      }}
+                      onDrop={(e) => {
+                        handleDropOnBlock(child.id, "after")(e);
+                      }}
+                    >
+                      {dragHoverId === child.id + "_after" && dragPosition === "inside" && (
+                        <div
+                          className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-[3px] rounded-full"
+                          style={{
+                            backgroundColor: "rgba(var(--accent-400), 0.55)",
+                            boxShadow: "0 2px 8px rgba(var(--shadow-soft), 0.2)"
+                          }}
+                        />
+                      )}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </>
+            ) : (
+              <div
+                className="relative h-5 my-0"
+                onDrop={handleDropOnBlock(block.id, "inside")}
+                onDragOver={(e) => {
+                  if (!e.dataTransfer.types.includes(DND_TYPE)) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragHoverId(block.id + "_empty");
+                  setDragPosition("inside");
+                  setDragInsideLoopId(null);
+                }}
+                onDragLeave={(e) => {
+                  e.stopPropagation();
+                  clearDrag();
+                }}
+              >
+                {dragHoverId === block.id + "_empty" && dragPosition === "inside" && (
+                  <div
+                    className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-[3px] rounded-full"
+                    style={{
+                      backgroundColor: "rgba(var(--accent-400), 0.55)",
+                      boxShadow: "0 2px 8px rgba(var(--shadow-soft), 0.2)"
+                    }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const headerLabel =
+      block.type === "wait"
+        ? "Wait"
+        : block.type === "waitUntil"
+        ? "Wait Until"
+        : block.type === "playSound"
+        ? "Play Sound"
+        : block.type === "notify"
+        ? "Notification"
+        : "Loop";
+
     const header = (
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-accent-400">
-          {block.type === "wait"
-            ? "Wait"
-            : block.type === "waitUntil"
-            ? "Wait Until"
-            : block.type === "playSound"
-            ? "Play Sound"
-            : "Loop"}
-        </span>
+        <span className="text-xs text-accent-400">{headerLabel}</span>
         <button
           onClick={() => del(block.id)}
           className="soft-button bg-accent-50-90 text-accent-400 hover:bg-accent-100 text-xs px-3 py-1"
@@ -679,6 +823,7 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
           {block.type === "waitUntil" && waitUntilUi()}
           {block.type === "loop" && loopUi()}
           {block.type === "playSound" && soundUi()}
+          {block.type === "notify" && notifyUi()}
         </div>
 
         {!suppressOuterLine && (
@@ -726,14 +871,14 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
               className="soft-input max-w-[140px] shrink-0"
               value={(draft as any).mode ?? "stopwatch"}
               onChange={(e) => {
-                const nextMode = e.target.value as AlarmMode;
+                const nextMode = e.target.value as TimerMode;
                 setDraft((prev) => {
                   const updated = { ...prev, mode: nextMode };
                   const prevMode = (prev as any).mode ?? "stopwatch";
                   const prevDefault =
-                    prevMode === "stopwatch" ? "New Timer" : "New Alarm";
+                    prevMode === "stopwatch" ? "New Timer" : "New Timer";
                   const nextDefault =
-                    nextMode === "stopwatch" ? "New Timer" : "New Alarm";
+                    nextMode === "stopwatch" ? "New Timer" : "New Timer";
                   if (
                     !nameEdited &&
                     prev.name.trim().toLowerCase() ===
@@ -753,7 +898,10 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
               value={draft.name}
               onChange={(e) => {
                 setNameEdited(true);
-                setDraft((prev) => ({ ...prev, name: e.target.value }));
+                setDraft((prev) => ({
+                  ...prev,
+                  name: e.target.value.slice(0, 20)
+                }));
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -881,4 +1029,4 @@ const AlarmEditor: React.FC<Props> = ({ alarm, onBack, onSave }) => {
   );
 };
 
-export default AlarmEditor;
+export default TimerEditor;

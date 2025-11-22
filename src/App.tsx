@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useAlarms } from "./hooks/useAlarms";
-import { useAlarmRunner } from "./hooks/useAlarmRunner";
-import type { Alarm, ThemeName } from "./types";
-import AlarmGrid from "./components/AlarmGrid";
+import { useTimers } from "./hooks/useTimers";
+import { useMultiTimerRunner } from "./hooks/useMultiTimerRunner";
+import type { Timer, ThemeName } from "./types";
+import TimerGrid from "./components/TimerGrid";
 import PlayMenu from "./components/PlayMenu";
-import AlarmEditor from "./components/AlarmEditor";
+import TimerEditor from "./components/TimerEditor";
 import ThemeBar from "./components/ThemeBar";
 import { createId } from "./utils/ids";
 import { sanitizeTimeInput } from "./utils/time";
@@ -12,12 +12,12 @@ import { sanitizeTimeInput } from "./utils/time";
 type View = "grid" | "editor";
 
 const App: React.FC = () => {
-  const { alarms, createAlarm, updateAlarm, deleteAlarm } = useAlarms();
+  const { timers, createTimer, updateTimer, deleteTimer } = useTimers();
   const [view, setView] = useState<View>("grid");
-  const [selectedAlarmId, setSelectedAlarmId] = useState<string | null>(null);
-  const [editorAlarmId, setEditorAlarmId] = useState<string | null>(null);
-  const [pendingNewAlarmId, setPendingNewAlarmId] = useState<string | null>(null);
-  const [alarmPendingDelete, setAlarmPendingDelete] = useState<Alarm | null>(null);
+  const [selectedTimerId, setSelectedTimerId] = useState<string | null>(null);
+  const [editorTimerId, setEditorTimerId] = useState<string | null>(null);
+  const [pendingNewTimerId, setPendingNewTimerId] = useState<string | null>(null);
+  const [timerPendingDelete, setTimerPendingDelete] = useState<Timer | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<
     "timer" | "alarm" | "daily" | "pomodoro" | "custom" | null
@@ -28,7 +28,7 @@ const App: React.FC = () => {
   const [pomoBreakMinutes, setPomoBreakMinutes] = useState(5);
   const [alarmTime, setAlarmTime] = useState("07:00");
   const [alarmAmpm, setAlarmAmpm] = useState<"AM" | "PM">("AM");
-  const [tempEditorAlarm, setTempEditorAlarm] = useState<Alarm | null>(null);
+  const [tempEditorTimer, setTempEditorTimer] = useState<Timer | null>(null);
   const [theme, setTheme] = useState<ThemeName>(() => {
     if (typeof window !== "undefined") {
       return ((localStorage.getItem("alarm-theme") as ThemeName) || "pink") as ThemeName;
@@ -36,60 +36,54 @@ const App: React.FC = () => {
     return "pink";
   });
 
-  const { isRunning, activeBlockId, start, stop } = useAlarmRunner();
+  const { isRunning, getActiveBlockId, start, stop } = useMultiTimerRunner();
 
-  const selectedAlarm: Alarm | undefined = alarms.find(
-    (a) => a.id === selectedAlarmId
+  const selectedTimer: Timer | undefined = timers.find(
+    (t) => t.id === selectedTimerId
   );
 
-  const editorAlarmFromState: Alarm | undefined = alarms.find(
-    (a) => a.id === editorAlarmId
+  const editorTimerFromState: Timer | undefined = timers.find(
+    (t) => t.id === editorTimerId
   );
-  const editorAlarm =
-    editorAlarmFromState ??
-    (tempEditorAlarm?.id === editorAlarmId ? tempEditorAlarm : tempEditorAlarm ?? undefined);
+  const editorTimer =
+    editorTimerFromState ??
+    (tempEditorTimer?.id === editorTimerId ? tempEditorTimer : tempEditorTimer ?? undefined);
 
-  const handleCreateAlarm = () => {
-    const alarm = createAlarm();
-    if (!alarm) return;
-    setTempEditorAlarm(alarm);
-    setPendingNewAlarmId(alarm.id);
-    setEditorAlarmId(alarm.id);
+  const handleEditTimer = (timer: Timer) => {
+    if (isRunning(timer.id)) {
+      stop(timer.id);
+    }
+    setPendingNewTimerId(null);
+    setEditorTimerId(timer.id);
     setView("editor");
   };
 
-  const handleEditAlarm = (alarm: Alarm) => {
-    setPendingNewAlarmId(null);
-    setEditorAlarmId(alarm.id);
-    setView("editor");
-  };
-
-  const handleSaveAlarm = (draft: Alarm) => {
-    updateAlarm(draft);
-    setPendingNewAlarmId((prev) => (prev === draft.id ? null : prev));
-    setEditorAlarmId(null);
-    setTempEditorAlarm(null);
+  const handleSaveTimer = (draft: Timer) => {
+    updateTimer(draft);
+    setPendingNewTimerId((prev) => (prev === draft.id ? null : prev));
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
     setView("grid");
   };
 
-  const handleDeleteAlarm = (alarm: Alarm) => {
-    if (selectedAlarmId === alarm.id) {
-      setSelectedAlarmId(null);
+  const handleDeleteTimer = (timer: Timer) => {
+    if (selectedTimerId === timer.id) {
+      setSelectedTimerId(null);
     }
-    deleteAlarm(alarm.id);
-    setAlarmPendingDelete(null);
+    deleteTimer(timer.id);
+    setTimerPendingDelete(null);
   };
 
   const handleBackFromEditor = () => {
-    if (editorAlarmId && pendingNewAlarmId === editorAlarmId) {
-      deleteAlarm(editorAlarmId);
-      if (selectedAlarmId === editorAlarmId) {
-        setSelectedAlarmId(null);
+    if (editorTimerId && pendingNewTimerId === editorTimerId) {
+      deleteTimer(editorTimerId);
+      if (selectedTimerId === editorTimerId) {
+        setSelectedTimerId(null);
       }
     }
-    setPendingNewAlarmId(null);
-    setEditorAlarmId(null);
-    setTempEditorAlarm(null);
+    setPendingNewTimerId(null);
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
     setView("grid");
   };
 
@@ -103,8 +97,15 @@ const App: React.FC = () => {
       setQuickSeconds(0);
     }
 
-    const alarm = createAlarm();
-    if (!alarm) return;
+    const timer = createTimer();
+    if (!timer) return;
+
+    const notify = {
+      id: createId(),
+      type: "notify" as const,
+      title: "Timer complete",
+      body: ""
+    };
 
     const blocks = [
       {
@@ -113,6 +114,7 @@ const App: React.FC = () => {
         amount: totalSeconds,
         unit: "seconds" as const
       },
+      notify,
       {
         id: createId(),
         type: "playSound" as const,
@@ -121,26 +123,26 @@ const App: React.FC = () => {
       }
     ];
 
-    const updated: Alarm = {
-      ...alarm,
+    const updated: Timer = {
+      ...timer,
       name: "Quick Timer",
       mode: "stopwatch",
       blocks
     };
 
-    updateAlarm(updated);
-    setPendingNewAlarmId(null);
-    setEditorAlarmId(null);
-    setTempEditorAlarm(null);
-    setSelectedAlarmId(updated.id);
+    updateTimer(updated);
+    setPendingNewTimerId(null);
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
+    setSelectedTimerId(updated.id);
     setShowTemplatePicker(false);
     setSelectedTemplate("timer");
     setView("grid");
   };
 
   const handleCreatePomodoro = () => {
-    const alarm = createAlarm();
-    if (!alarm) return;
+    const timer = createTimer();
+    if (!timer) return;
 
     const workMinutes = Math.max(1, Math.min(180, Math.floor(Number(pomoWorkMinutes) || 25)));
     const breakMinutes = Math.max(1, Math.min(120, Math.floor(Number(pomoBreakMinutes) || 5)));
@@ -150,6 +152,13 @@ const App: React.FC = () => {
       type: "wait" as const,
       amount,
       unit
+    });
+
+    const notify = (label: string) => ({
+      id: createId(),
+      type: "notify" as const,
+      title: label,
+      body: "A chime will play now."
     });
 
     const chime = {
@@ -166,21 +175,21 @@ const App: React.FC = () => {
       id: createId(),
       type: "loop" as const,
       repeat: 4,
-      children: [work, chime, shortBreak, chime]
+      children: [work, notify("Work complete"), chime, shortBreak, notify("Break complete"), chime]
     };
 
-    const updated: Alarm = {
-      ...alarm,
+    const updated: Timer = {
+      ...timer,
       name: "Pomodoro",
       mode: "stopwatch",
       blocks: [loop]
     };
 
-    updateAlarm(updated);
-    setPendingNewAlarmId(null);
-    setEditorAlarmId(null);
-    setTempEditorAlarm(null);
-    setSelectedAlarmId(updated.id);
+    updateTimer(updated);
+    setPendingNewTimerId(null);
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
+    setSelectedTimerId(updated.id);
     setShowTemplatePicker(false);
     setSelectedTemplate("timer");
     setView("grid");
@@ -190,14 +199,21 @@ const App: React.FC = () => {
     const safeTime = sanitizeTimeInput(alarmTime, "07:00");
     const [hh, mm] = safeTime.split(":");
 
-    const alarm = createAlarm();
-    if (!alarm) return;
+    const timer = createTimer();
+    if (!timer) return;
 
     const waitUntilBlock = {
       id: createId(),
       type: "waitUntil" as const,
       time: `${hh}:${mm}`,
       ampm: alarmAmpm
+    };
+
+    const notify = {
+      id: createId(),
+      type: "notify" as const,
+      title: repeatDaily ? "Daily alarm" : "Alarm",
+      body: "Alarm is about to play."
     };
 
     const soundBlock = {
@@ -213,26 +229,37 @@ const App: React.FC = () => {
             id: createId(),
             type: "loop" as const,
             repeat: -1,
-            children: [waitUntilBlock, soundBlock]
+            children: [waitUntilBlock, notify, soundBlock]
           }
         ]
-      : [waitUntilBlock, soundBlock];
+      : [waitUntilBlock, notify, soundBlock];
 
-    const updated: Alarm = {
-      ...alarm,
+    const updated: Timer = {
+      ...timer,
       name: repeatDaily ? "Daily Alarm" : "Quick Alarm",
       mode: "alarm",
       blocks
     };
 
-    updateAlarm(updated);
-    setPendingNewAlarmId(null);
-    setEditorAlarmId(null);
-    setTempEditorAlarm(null);
-    setSelectedAlarmId(updated.id);
+    updateTimer(updated);
+    setPendingNewTimerId(null);
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
+    setSelectedTimerId(updated.id);
     setShowTemplatePicker(false);
     setSelectedTemplate("timer");
     setView("grid");
+  };
+
+  const handleCreateCustomTimer = () => {
+    const timer = createTimer();
+    if (!timer) return;
+    setTempEditorTimer(timer);
+    setPendingNewTimerId(timer.id);
+    setEditorTimerId(timer.id);
+    setShowTemplatePicker(false);
+    setSelectedTemplate("timer");
+    setView("editor");
   };
 
   const handleCreateSelectedTemplate = () => {
@@ -245,17 +272,9 @@ const App: React.FC = () => {
     } else if (selectedTemplate === "pomodoro") {
       handleCreatePomodoro();
     } else if (selectedTemplate === "custom") {
-      handleCreateAlarm();
-      setShowTemplatePicker(false);
-      setSelectedTemplate("timer");
+      handleCreateCustomTimer();
     }
   };
-
-  useEffect(() => {
-    if (editorAlarmId && view !== "editor") {
-      setView("editor");
-    }
-  }, [editorAlarmId, view]);
 
   useEffect(() => {
     if (view === "editor") {
@@ -291,42 +310,39 @@ const App: React.FC = () => {
           </div>
 
           <PlayMenu
-            alarm={selectedAlarm ?? alarms[0] ?? { id: "", name: "", blocks: [] }}
-            isVisible={!!selectedAlarm}
-            activeBlockId={activeBlockId}
-            isRunning={isRunning}
-            onClose={() => setSelectedAlarmId(null)}
-            onPlay={() => selectedAlarm && start(selectedAlarm)}
-            onStop={stop}
+            timer={selectedTimer ?? timers[0] ?? { id: "", name: "", blocks: [] }}
+            isVisible={!!selectedTimer}
+            activeBlockId={getActiveBlockId(selectedTimerId)}
+            isRunning={isRunning(selectedTimerId)}
+            onClose={() => setSelectedTimerId(null)}
+            onPlay={() => selectedTimer && start(selectedTimer)}
+            onStop={() => selectedTimerId && stop(selectedTimerId)}
           />
 
-          <AlarmGrid
-            alarms={alarms}
-            activeAlarmId={selectedAlarmId ?? undefined}
-            onSelectAlarm={(alarm) => setSelectedAlarmId(alarm.id)}
-            onEditAlarm={handleEditAlarm}
-            onDeleteAlarm={(alarm, options) => {
+          <TimerGrid
+            timers={timers}
+            activeTimerId={selectedTimerId ?? undefined}
+            onSelectTimer={(timer) => setSelectedTimerId(timer.id)}
+            onEditTimer={handleEditTimer}
+            onDeleteTimer={(timer, options) => {
               const skipConfirm = options?.skipConfirm;
               if (skipConfirm) {
-                handleDeleteAlarm(alarm);
+                handleDeleteTimer(timer);
                 return;
               }
-              setAlarmPendingDelete(alarm);
+              setTimerPendingDelete(timer);
             }}
-            onCreateAlarm={() => {
+            onCreateTimer={() => {
               setSelectedTemplate("timer");
               setShowTemplatePicker(true);
             }}
+            isTimerRunning={isRunning}
           />
         </div>
       )}
 
-      {view === "editor" && editorAlarm && (
-        <AlarmEditor
-          alarm={editorAlarm}
-          onBack={handleBackFromEditor}
-          onSave={handleSaveAlarm}
-        />
+      {view === "editor" && editorTimer && (
+        <TimerEditor timer={editorTimer} onBack={handleBackFromEditor} onSave={handleSaveTimer} />
       )}
 
       <ThemeBar theme={theme} onChange={setTheme} />
@@ -434,8 +450,8 @@ const App: React.FC = () => {
                   <p className="text-xs uppercase tracking-wide text-accent-300 mb-1">
                     Duration
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
                       <span className="text-[11px] uppercase tracking-wide text-accent-300">
                         Minutes
                       </span>
@@ -452,7 +468,7 @@ const App: React.FC = () => {
                         }
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
                       <span className="text-[11px] uppercase tracking-wide text-accent-300">
                         Seconds
                       </span>
@@ -481,48 +497,54 @@ const App: React.FC = () => {
                   <p className="text-xs uppercase tracking-wide text-accent-300 mb-1">
                     Alarm time
                   </p>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="soft-input max-w-[90px]"
-                      value={alarmHh}
-                      onChange={(e) =>
-                        setAlarmTime((prev) => {
-                          const [, prevMm] = sanitizeTimeInput(prev, "07:00").split(":");
-                          return `${e.target.value}:${prevMm}`;
-                        })
-                      }
-                    >
-                      {hourOptions.map((h) => (
-                        <option key={h} value={h}>
-                          {h}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-accent-400">:</span>
-                    <select
-                      className="soft-input max-w-[90px]"
-                      value={alarmMm}
-                      onChange={(e) =>
-                        setAlarmTime((prev) => {
-                          const [prevH] = sanitizeTimeInput(prev, "07:00").split(":");
-                          return `${prevH}:${e.target.value}`;
-                        })
-                      }
-                    >
-                      {minuteOptions.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="soft-input max-w-[90px]"
-                      value={alarmAmpm}
-                      onChange={(e) => setAlarmAmpm(e.target.value as "AM" | "PM")}
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <div className="flex-1 min-w-[120px]">
+                      <select
+                        className="soft-input w-full"
+                        value={alarmHh}
+                        onChange={(e) =>
+                          setAlarmTime((prev) => {
+                            const [, prevMm] = sanitizeTimeInput(prev, "07:00").split(":");
+                            return `${e.target.value}:${prevMm}`;
+                          })
+                        }
+                      >
+                        {hourOptions.map((h) => (
+                          <option key={h} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <span className="text-accent-400 pb-2">:</span>
+                    <div className="flex-1 min-w-[120px]">
+                      <select
+                        className="soft-input w-full"
+                        value={alarmMm}
+                        onChange={(e) =>
+                          setAlarmTime((prev) => {
+                            const [prevH] = sanitizeTimeInput(prev, "07:00").split(":");
+                            return `${prevH}:${e.target.value}`;
+                          })
+                        }
+                      >
+                        {minuteOptions.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-[120px]">
+                      <select
+                        className="soft-input w-full"
+                        value={alarmAmpm}
+                        onChange={(e) => setAlarmAmpm(e.target.value as "AM" | "PM")}
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
@@ -532,8 +554,8 @@ const App: React.FC = () => {
                   <p className="text-xs uppercase tracking-wide text-accent-300 mb-1">
                     Pomodoro settings
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
                       <span className="text-[11px] uppercase tracking-wide text-accent-300">
                         Work (minutes)
                       </span>
@@ -550,7 +572,7 @@ const App: React.FC = () => {
                         }
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
                       <span className="text-[11px] uppercase tracking-wide text-accent-300">
                         Break (minutes)
                       </span>
@@ -600,7 +622,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {alarmPendingDelete && (
+      {timerPendingDelete && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm px-4">
           <div className="pastel-card w-full max-w-sm p-5 shadow-accent-soft">
             <div className="flex items-start justify-between gap-3 mb-4">
@@ -609,12 +631,12 @@ const App: React.FC = () => {
                   Confirm delete
                 </p>
                 <p className="text-base font-semibold text-accent-600">
-                  Delete “{alarmPendingDelete.name || "Untitled Alarm"}”?
+                  Delete “{timerPendingDelete.name || "Untitled Timer"}”?
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setAlarmPendingDelete(null)}
+                onClick={() => setTimerPendingDelete(null)}
                 className="soft-button bg-accent-50 hover:bg-accent-100 text-xs px-2 py-1"
               >
                 ✕
@@ -630,14 +652,14 @@ const App: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setAlarmPendingDelete(null)}
+                  onClick={() => setTimerPendingDelete(null)}
                   className="soft-button bg-accent-50 hover:bg-accent-100 text-accent-500"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDeleteAlarm(alarmPendingDelete)}
+                  onClick={() => handleDeleteTimer(timerPendingDelete)}
                   className="soft-button-primary"
                 >
                   Delete

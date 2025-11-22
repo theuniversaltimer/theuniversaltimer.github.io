@@ -1,5 +1,5 @@
 import React from "react";
-import type { Alarm, Block, LoopBlock, PlaySoundBlock, WaitBlock, WaitUntilBlock } from "../types";
+import type { Timer, Block, LoopBlock, PlaySoundBlock, WaitBlock, WaitUntilBlock } from "../types";
 
 const formatDuration = (seconds?: number): string | null => {
   if (seconds === undefined || Number.isNaN(seconds)) return null;
@@ -33,7 +33,7 @@ const collectPlaySoundBlocks = (blocks: Block[]): PlaySoundBlock[] => {
 };
 
 interface Props {
-  alarm: Alarm;
+  timer: Timer;
   isVisible: boolean;
   onClose: () => void;
   onPlay: () => void;
@@ -55,6 +55,10 @@ const describeBlock = (block: Block, durations: Record<string, number>): string 
     const b = block as PlaySoundBlock;
     return `Play sound – ${b.label || "Sound"}`;
   }
+  if (block.type === "notify") {
+    const b = block as any;
+    return `Notify – ${b.title || "Notification"}`;
+  }
   if (block.type === "loop") {
     const b = block as LoopBlock;
     const count = b.repeat || 1;
@@ -75,8 +79,8 @@ const BlockTree: React.FC<{
     <>
       {blocks.map((block) => {
         const isActive = block.id === activeBlockId;
-        const isLoop = block.type === "loop";
-        const isCollapsed = isLoop ? collapsedMap[block.id] ?? true : false;
+        const isContainer = block.type === "loop" || block.type === "notify";
+        const isCollapsed = isContainer ? collapsedMap[block.id] ?? true : false;
         return (
           <div key={block.id} className="mb-1 mt-1">
             <div
@@ -88,7 +92,7 @@ const BlockTree: React.FC<{
               style={{ marginLeft: depth * 12 }}
             >
               <span>{describeBlock(block, durationsMap)}</span>
-              {isLoop && (
+              {isContainer && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -102,9 +106,9 @@ const BlockTree: React.FC<{
                 </button>
               )}
             </div>
-            {isLoop && !isCollapsed && (
+            {isContainer && !isCollapsed && (
               <BlockTree
-                blocks={(block as LoopBlock).children}
+                blocks={(block as any).children}
                 activeBlockId={activeBlockId}
                 collapsedMap={collapsedMap}
                 onToggleLoop={onToggleLoop}
@@ -120,7 +124,7 @@ const BlockTree: React.FC<{
 };
 
 const PlayMenu: React.FC<Props> = ({
-  alarm,
+  timer,
   isVisible,
   onClose,
   onPlay,
@@ -135,7 +139,7 @@ const PlayMenu: React.FC<Props> = ({
   React.useEffect(() => {
     let cancelled = false;
     const loadDurations = async () => {
-      const playBlocks = collectPlaySoundBlocks(alarm.blocks);
+      const playBlocks = collectPlaySoundBlocks(timer.blocks);
       const results = await Promise.all(
         playBlocks.map(
           (b) =>
@@ -163,7 +167,7 @@ const PlayMenu: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [alarm.blocks]);
+  }, [timer.blocks]);
 
   const handleToggleLoop = (id: string) => {
     setCollapsedMap((prev) => ({
@@ -173,7 +177,7 @@ const PlayMenu: React.FC<Props> = ({
   };
 
   const hasSelection = isVisible;
-  const hasBlocks = alarm.blocks.length > 0;
+  const hasBlocks = timer.blocks.length > 0;
 
   if (!isVisible) return null;
 
@@ -186,7 +190,7 @@ const PlayMenu: React.FC<Props> = ({
               Play Menu
             </span>
             <span className="text-base font-semibold text-accent-600">
-              {hasSelection ? alarm.name || "Selected Alarm" : "No alarm selected"}
+              {hasSelection ? timer.name || "Selected Timer" : "No timer selected"}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -239,7 +243,7 @@ const PlayMenu: React.FC<Props> = ({
               {showSteps ? (
                 hasBlocks ? (
                   <BlockTree
-                    blocks={alarm.blocks}
+                    blocks={timer.blocks}
                     activeBlockId={activeBlockId}
                     collapsedMap={collapsedMap}
                     onToggleLoop={handleToggleLoop}
@@ -253,7 +257,7 @@ const PlayMenu: React.FC<Props> = ({
               ) : null}
             </>
           ) : (
-            <p className="text-xs text-accent-400">No alarm selected. Choose a timer to play.</p>
+            <p className="text-xs text-accent-400">No timer selected. Choose a timer to play.</p>
           )}
         </div>
       </div>

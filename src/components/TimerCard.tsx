@@ -1,30 +1,32 @@
 import React from "react";
-import type { Alarm } from "../types";
+import type { Timer } from "../types";
 
 interface Props {
-  alarm: Alarm;
+  timer: Timer;
   onPlayMenu: () => void;
   onEdit: () => void;
   onDelete: (skipConfirm: boolean) => void;
   isActive?: boolean;
+  isPlaying?: boolean;
 }
 
-const AlarmCard: React.FC<Props> = ({
-  alarm,
+const TimerCard: React.FC<Props> = ({
+  timer,
   onPlayMenu,
   onEdit,
   onDelete,
-  isActive
+  isActive,
+  isPlaying = false
 }) => {
-  const countBlocks = (blocks: Alarm["blocks"]): number =>
+  const countBlocks = (blocks: Timer["blocks"]): number =>
     blocks.reduce((sum, b) => {
-      if (b.type === "loop") {
+      if (b.type === "loop" || b.type === "notify") {
         return sum + 1 + countBlocks((b as any).children || []);
       }
       return sum + 1;
     }, 0);
 
-  const blockCount = countBlocks(alarm.blocks);
+  const blockCount = countBlocks(timer.blocks);
 
   const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -46,12 +48,24 @@ const AlarmCard: React.FC<Props> = ({
       <div className="flex w-full items-center justify-between gap-2">
         <div className="flex flex-col">
           <span className="text-xs uppercase tracking-wide text-accent-300">
-            {alarm.mode === "stopwatch" ? "Stopwatch" : "Alarm"}
+            {timer.mode === "stopwatch" ? "Stopwatch" : "Timer"}
           </span>
           <span className="text-base font-semibold text-accent-600">
-            {alarm.name || "Untitled Alarm"}
+            {timer.name || "Untitled Timer"}
           </span>
         </div>
+        {isPlaying && (
+          <span className="text-[11px] font-semibold text-accent-500 bg-accent-50 px-2 py-1 rounded-full border border-accent-100">
+            Playing
+          </span>
+        )}
+      </div>
+      <div className="flex w-full items-center justify-between gap-2">
+        <p className="text-xs text-accent-400">
+          {blockCount
+            ? `${blockCount} block${blockCount === 1 ? "" : "s"}`
+            : "No blocks yet"}
+        </p>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -75,13 +89,8 @@ const AlarmCard: React.FC<Props> = ({
           </button>
         </div>
       </div>
-      <p className="text-xs text-accent-400">
-        {blockCount
-          ? `${blockCount} block${blockCount === 1 ? "" : "s"}`
-          : "No blocks yet"}
-      </p>
     </div>
   );
 };
 
-export default AlarmCard;
+export default TimerCard;

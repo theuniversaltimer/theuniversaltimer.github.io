@@ -1,7 +1,7 @@
 export type TimeUnit = "seconds" | "minutes" | "hours" | "days";
 export type AmPm = "AM" | "PM";
 
-export type BlockType = "loop" | "wait" | "waitUntil" | "playSound";
+export type BlockType = "loop" | "wait" | "waitUntil" | "playSound" | "notify";
 
 export interface BaseBlock {
   id: string;
@@ -33,13 +33,20 @@ export interface PlaySoundBlock extends BaseBlock {
   customUrl?: string;
 }
 
-export type Block = LoopBlock | WaitBlock | WaitUntilBlock | PlaySoundBlock;
+export interface NotifyBlock extends BaseBlock {
+  type: "notify";
+  title: string;
+  body?: string;
+  children?: Block[];
+}
 
-export interface Alarm {
+export type Block = LoopBlock | WaitBlock | WaitUntilBlock | PlaySoundBlock | NotifyBlock;
+
+export interface Timer {
   id: string;
   name: string;
   blocks: Block[];
-  mode?: AlarmMode;
+  mode?: TimerMode;
 }
 
 export type ThemeName =
@@ -51,4 +58,4 @@ export type ThemeName =
   | "white"
   | "dark";
 
-export type AlarmMode = "alarm" | "stopwatch";
+export type TimerMode = "alarm" | "stopwatch";

@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
-import type { Alarm, AlarmMode, Block } from "../types";
+import type { Timer, TimerMode, Block } from "../types";
 import { createId } from "../utils/ids";
 
-const STORAGE_KEY = "alarm-generator-alarms";
+const STORAGE_KEY = "timer-generator-timers";
 
 const makeUniqueName = (
   baseName: string,
-  alarms: Alarm[],
+  timers: Timer[],
   ignoreId?: string
 ): string => {
   const fallback = "New Timer";
   const base = baseName.trim() || fallback;
   const existing = new Set(
-    alarms
-      .filter((a) => a.id !== ignoreId)
-      .map((a) => a.name.trim().toLowerCase())
+    timers
+      .filter((t) => t.id !== ignoreId)
+      .map((t) => t.name.trim().toLowerCase())
   );
 
   if (!existing.has(base.toLowerCase())) return base;
@@ -28,27 +28,27 @@ const makeUniqueName = (
   return candidate;
 };
 
-const withDefaultMode = (alarm: Alarm): Alarm & { mode: AlarmMode } => ({
-  ...alarm,
-  mode: (alarm as any).mode ?? "stopwatch"
+const withDefaultMode = (timer: Timer): Timer & { mode: TimerMode } => ({
+  ...timer,
+  mode: (timer as any).mode ?? "stopwatch"
 });
 
-export function useAlarms() {
-  const [alarms, setAlarms] = useState<Alarm[]>([]);
+export function useTimers() {
+  const [timers, setTimers] = useState<Timer[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const safeLoad = (): Alarm[] | null => {
+    const safeLoad = (): Timer[] | null => {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return null;
         return parsed
-          .filter((a) => a && typeof a.id === "string" && Array.isArray((a as any).blocks))
-          .map((a) => withDefaultMode(a as Alarm));
+          .filter((t) => t && typeof t.id === "string" && Array.isArray((t as any).blocks))
+          .map((t) => withDefaultMode(t as Timer));
       } catch {
         return null;
       }
@@ -56,9 +56,9 @@ export function useAlarms() {
 
     const stored = safeLoad();
     if (stored && stored.length) {
-      setAlarms(stored);
+      setTimers(stored);
     } else {
-      setAlarms([]);
+      setTimers([]);
     }
     setHasLoaded(true);
   }, []);
@@ -67,25 +67,25 @@ export function useAlarms() {
     if (typeof window === "undefined") return;
     if (!hasLoaded) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(alarms));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
     } catch {
       // ignore write failures (e.g., storage blocked)
     }
-  }, [alarms, hasLoaded]);
+  }, [timers, hasLoaded]);
 
-  const createAlarm = () => {
-    const created: Alarm = {
+  const createTimer = () => {
+    const created: Timer = {
       id: createId(),
-      name: makeUniqueName("New Timer", alarms),
+      name: makeUniqueName("New Timer", timers),
       blocks: [],
       mode: "stopwatch"
     };
-    setAlarms((prev) => [...prev, created]);
+    setTimers((prev) => [...prev, created]);
     return created;
   };
 
-  const updateAlarm = (updated: Alarm) => {
-    setAlarms((prev) =>
+  const updateTimer = (updated: Timer) => {
+    setTimers((prev) =>
       prev.map((a) =>
         a.id === updated.id
           ? {
@@ -97,9 +97,9 @@ export function useAlarms() {
     );
   };
 
-  const deleteAlarm = (id: string) => {
-    setAlarms((prev) => prev.filter((a) => a.id !== id));
+  const deleteTimer = (id: string) => {
+    setTimers((prev) => prev.filter((a) => a.id !== id));
   };
 
-  return { alarms, createAlarm, updateAlarm, deleteAlarm };
+  return { timers, createTimer, updateTimer, deleteTimer };
 }
