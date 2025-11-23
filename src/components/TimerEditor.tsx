@@ -5,6 +5,7 @@ import {
   DragStartEvent,
   pointerWithin,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors
 } from "@dnd-kit/core";
@@ -67,6 +68,9 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 4 }
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { distance: 6 }
     })
   );
 
@@ -318,7 +322,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
                 visibility: dragProps?.style?.visibility ?? "visible"
               })
         }}
-        className={`pastel-card pastel-hover p-3 w-full ${
+        className={`draggable-card pastel-card pastel-hover p-3 w-full ${
           isActive ? "ring-2 ring-accent-300" : ""
         }`}
         {...dragProps?.attributes}

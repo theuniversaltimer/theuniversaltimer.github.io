@@ -10,3 +10,8 @@
   background: transparent;
   box-shadow: 0 2px 8px rgba(var(--shadow-soft), 0.25);
 }
+
+.draggable-card,
+.palette-draggable {
+  touch-action: none; /* prevent touch scrolling from cancelling drag */
+}

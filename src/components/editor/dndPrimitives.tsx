@@ -106,7 +106,7 @@ export const PaletteItem: React.FC<{
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`pastel-card pastel-hover p-3 cursor-grab select-none transition-opacity ${
+      className={`palette-draggable pastel-card pastel-hover p-3 cursor-grab select-none transition-opacity ${
         isDragging ? "opacity-75" : ""
       }`}
     >
