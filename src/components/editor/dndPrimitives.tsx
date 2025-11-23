@@ -126,10 +126,16 @@ export const BlockOverlay: React.FC<{ block: Block }> = ({ block }) => (
 export const EditorDragOverlay: React.FC<{
   block: Block | null;
   renderContent?: (block: Block) => React.ReactNode;
-}> = ({ block, renderContent }) => (
+  width?: number;
+}> = ({ block, renderContent, width }) => (
   <DragOverlay dropAnimation={null}>
     {block ? (
-      <div style={{ width: "200px", pointerEvents: "none" }}>
+      <div
+        style={{
+          width: width ? `${width}px` : "200px",
+          pointerEvents: "none"
+        }}
+      >
         {renderContent ? renderContent(block) : <BlockOverlay block={block} />}
       </div>
     ) : null}

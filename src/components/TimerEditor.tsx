@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -55,16 +55,25 @@ interface Props {
   activeBlockId?: string | null;
 }
 
+const normalizeTimer = (t: Timer): Timer => ({
+  ...t,
+  mode: (t as any).mode ?? "stopwatch"
+});
+
+const timersEqual = (a: Timer, b: Timer): boolean =>
+  JSON.stringify(a) === JSON.stringify(b);
+
 const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) => {
-  const [draft, setDraft] = useImmer<Timer>(() => ({
-    ...timer,
-    mode: (timer as any).mode ?? "stopwatch"
-  }));
+  const [draft, setDraft] = useImmer<Timer>(() => normalizeTimer(timer));
   const [nameEdited, setNameEdited] = useState(false);
   const [overlayBlock, setOverlayBlock] = useState<Block | null>(null);
+  const [overlayWidth, setOverlayWidth] = useState<number | undefined>(undefined);
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [activeDragData, setActiveDragData] = useState<DragMeta | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const blockSizeRef = useRef<Map<string, number>>(new Map());
+  const blockNodeRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const initialTimerRef = useRef<Timer>(normalizeTimer(timer));
 
   const sensors = useSensors(
     useSensor(TouchSensor, {
@@ -75,9 +84,18 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     })
   );
 
+  useEffect(() => {
+    initialTimerRef.current = normalizeTimer(timer);
+  }, [timer]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    return !timersEqual(normalizeTimer(draft), initialTimerRef.current);
+  }, [draft]);
+
   const resetDrag = () => {
     setOverlayBlock(null);
     setIsDragActive(false);
+    setOverlayWidth(undefined);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -88,9 +106,12 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     if (data.kind === "existing") {
       const block = findBlockById(draft.blocks, data.blockId);
       if (block) setOverlayBlock(block);
+      const measuredWidth = blockSizeRef.current.get(data.blockId);
+      setOverlayWidth(measuredWidth);
       setDraggingBlockId(data.blockId);
     } else {
       setOverlayBlock(createDefaultBlock(data.blockType));
+      setOverlayWidth(undefined);
       setDraggingBlockId(null);
     }
   };
@@ -128,6 +149,27 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     setActiveDragData(null);
     setIsDragActive(false);
   };
+
+  const handleBackClick = () => {
+    if (
+      hasUnsavedChanges &&
+      typeof window !== "undefined" &&
+      !window.confirm("You have unsaved changes. Leave without saving?")
+    ) {
+      return;
+    }
+    onBack();
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      blockNodeRefs.current.forEach((el, id) => {
+        blockSizeRef.current.set(id, el.getBoundingClientRect().width);
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const sidebarBlocks = useMemo(
     () => [
@@ -168,7 +210,10 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     depth = 0,
     suppressOuterLine = false,
     preview = false,
-    isLast = false
+    isLast = false,
+    showPreviewActions = false,
+    disableDragWrapper = false,
+    ignoreDraggingHide = false
   ): React.ReactNode => {
     const loopUi = () => {
       const loop = block as LoopBlock;
@@ -316,7 +361,17 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
       isDragging?: boolean;
     }) => (
       <div
-        ref={dragProps?.setNodeRef}
+        ref={(el) => {
+          if (!dragProps?.setNodeRef) return;
+          dragProps.setNodeRef(el);
+          if (el) {
+            blockNodeRefs.current.set(block.id, el);
+            blockSizeRef.current.set(block.id, el.getBoundingClientRect().width);
+          } else {
+            blockNodeRefs.current.delete(block.id);
+            blockSizeRef.current.delete(block.id);
+          }
+        }}
         style={{
           ...dragProps?.style,
           ...(dragProps?.isDragging
@@ -338,7 +393,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
           <span className="text-xs text-accent-400 flex items-center gap-2 cursor-grab select-none">
             {headerLabel}
           </span>
-          {!preview && (
+          {(!preview || showPreviewActions) && (
             <button
               onClick={() => del(block.id)}
               className="soft-button bg-accent-50-90 text-accent-400 hover:bg-accent-100 text-xs px-3 py-1"
@@ -386,8 +441,16 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
       );
     }
 
-    if (draggingBlockId === block.id) {
+    if (draggingBlockId === block.id && !ignoreDraggingHide) {
       return null;
+    }
+
+    if (disableDragWrapper) {
+      return (
+        <div key={block.id} className="relative min-w-0">
+          {card()}
+        </div>
+      );
     }
 
     return (
@@ -432,7 +495,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
       >
         <div className="w-full max-w-6xl flex flex-col pastel-card pastel-hover p-5 pt-4 pb-4">
           <div className="flex items-center justify-between mb-4 gap-3">
-            <button onClick={onBack} className="soft-button-primary px-3 shrink-0">
+            <button onClick={handleBackClick} className="soft-button-primary px-3 shrink-0">
               ← Back
             </button>
             <div className="flex items-center gap-2 min-w-0">
@@ -496,10 +559,10 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
 
             <main className="flex-1 rounded-xl border border-accent-100 bg-accent-50-70 p-3 min-h-[300px] flex flex-col">
               {visibleBlocks.length === 0 ? (
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-h-[320px]">
                   <DropZone
                     id={buildDropId("root", "empty")}
-                    className="rounded-lg flex-1 flex items-center justify-center"
+                    className="absolute inset-0 rounded-lg flex items-center justify-center border border-dashed border-accent-100 bg-accent-50-90"
                     activeClassName="outline outline-2 outline-dashed outline-accent-200"
                   >
                     {() => (
@@ -534,7 +597,10 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
 
         <EditorDragOverlay
           block={overlayBlock}
-          renderContent={(block) => renderBlock(block, 0, false, true)}
+          width={overlayWidth}
+          renderContent={(block) =>
+            renderBlock(block, 0, false, false, false, true, true, true)
+          }
         />
       </DndContext>
     </div>

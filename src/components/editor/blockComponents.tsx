@@ -42,7 +42,18 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
     });
 
   const notification = block as any;
-  const soundType = notification.soundType === "custom" ? "url" : notification.soundType ?? "default";
+  const soundType =
+    notification.soundType === "custom" ? "url" : notification.soundType ?? "default";
+
+  const handleFileSelect = async (file: File) => {
+    const url = await fileToDataUrl(file);
+    if (!url) return;
+    mutateBlock(block.id, (prev) => {
+      (prev as any).customUrl = url;
+      (prev as any).soundType = "upload";
+      (prev as any).label = file.name || (prev as any).label;
+    });
+  };
 
   return (
     <>
@@ -68,72 +79,78 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
       />
 
       {showSoundControls && (
-        <div className="flex gap-2 items-center min-w-0">
-          <select
-            className="soft-input max-w-[80px]"
-            value={soundType}
-            onChange={(e) => {
-              const newSoundType = e.target.value as
-                | "default"
-                | "url"
-                | "upload"
-                | "custom";
-              mutateBlock(block.id, (prev) => {
-                (prev as any).soundType =
-                  newSoundType === "url" || newSoundType === "custom"
-                    ? "custom"
-                    : newSoundType;
-              });
-            }}
-          >
-            <option value="default">Default</option>
-            <option value="custom">Custom URL</option>
-            <option value="upload">Upload file</option>
-          </select>
-          {soundType === "default" && (
+        <div className="grid grid-cols-[90px,1fr] gap-2 items-start min-w-0">
+          <div className="flex flex-col items-center gap-1">
+            <label className="text-[11px] text-accent-400 text-center w-full">Sound</label>
             <select
-              className="soft-input flex-1"
-              value={notification.label || "Beep"}
-              onChange={(e) =>
+              className="soft-input w-full"
+              value={soundType}
+              onChange={(e) => {
+                const newSoundType = e.target.value as "default" | "url" | "upload";
                 mutateBlock(block.id, (prev) => {
-                  (prev as any).label = e.target.value;
-                })
-              }
-            >
-              <option value="Beep">Beep</option>
-            </select>
-          )}
-          {soundType === "custom" && (
-            <input
-              type="text"
-              className="soft-input flex-1"
-              placeholder="https://example.com/sound.mp3"
-              value={notification.customUrl || ""}
-              onChange={(e) =>
-                mutateBlock(block.id, (prev) => {
-                  (prev as any).customUrl = e.target.value;
-                })
-              }
-            />
-          )}
-          {soundType === "upload" && (
-            <AudioDropWrapper
-              onFile={async (file) => {
-                const url = await fileToDataUrl(file);
-                if (!url) return;
-                mutateBlock(block.id, (prev) => {
-                  (prev as any).customUrl = url;
-                  (prev as any).soundType = "upload";
+                  (prev as any).soundType = newSoundType;
+                  if (newSoundType === "default") {
+                    (prev as any).customUrl = "";
+                    (prev as any).label = (prev as any).label || "Beep";
+                  }
                 });
               }}
-              className="border-2 border-dashed border-accent-200 rounded-lg p-4 text-center cursor-pointer hover:bg-accent-50-20 transition-colors flex-1"
-              disabled={!!draggingBlockId}
             >
-              <p className="text-xs text-accent-400">
-                Drag audio file or click to select
-              </p>
-            </AudioDropWrapper>
-          )}
+              <option value="default">Default</option>
+              <option value="url">URL</option>
+              <option value="upload">Upload</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col min-w-0">
+            <div className="h-5" aria-hidden="true" />
+            <div className="flex items-center min-w-0">
+              {soundType === "default" && (
+                <select
+                  className="soft-input w-full"
+                  value={notification.label || "Beep"}
+                  onChange={(e) =>
+                    mutateBlock(block.id, (prev) => {
+                      (prev as any).label = e.target.value;
+                    })
+                  }
+                >
+                  <option value="Beep">Beep</option>
+                </select>
+              )}
+              {soundType === "url" && (
+                <input
+                  type="text"
+                  className="soft-input w-full"
+                  placeholder="https://example.com/audio.mp3"
+                  value={notification.customUrl || ""}
+                  onChange={(e) =>
+                    mutateBlock(block.id, (prev) => {
+                      (prev as any).customUrl = e.target.value;
+                    })
+                  }
+                />
+              )}
+              {soundType === "upload" && (
+                <AudioDropWrapper
+                  onFile={handleFileSelect}
+                  className="soft-input w-full border-dashed cursor-pointer text-sm text-accent-500"
+                  disabled={!!draggingBlockId}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-accent-500 truncate">
+                      {notification.customUrl
+                        ? notification.label || "Audio file loaded"
+                        : "Upload or drag a sound file"}
+                    </span>
+                    <span className="text-[11px] uppercase tracking-wide text-accent-400">
+                      Choose File
+                    </span>
+                  </div>
+                </AudioDropWrapper>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
