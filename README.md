@@ -52,4 +52,5 @@ npm run preview
 
 ## License
 
-MIT
+- Version: 1.0.0
+- This project is licensed under the MIT License. See `LICENSE` for details.
