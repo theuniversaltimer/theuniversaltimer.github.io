@@ -97,7 +97,7 @@ export const createDefaultBlock = (type: BlockType): Block => {
         label: "Beep",
         timeoutMs: 10000,
         soundType: "default",
-        interval: 0.3
+        interval: 0.2
       } as Block;
     case "loop":
     default:
