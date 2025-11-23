@@ -235,6 +235,16 @@ body {
   color: rgb(var(--accent-500));
 }
 
+.theme-surface {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-color: rgb(var(--accent-100));
+}
+
+[data-theme="dark"] .theme-surface {
+  background-color: var(--accent-card-bg, rgba(40, 40, 46, 0.9));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
 .pastel-hover {
   @apply transition-transform transition-shadow duration-200 ease-out;
 }
@@ -242,6 +252,17 @@ body {
 .pastel-hover:hover {
   transform: scale(1.01);
   box-shadow: 0 10px 30px rgba(var(--shadow-soft), 0.45);
+}
+
+.theme-bar {
+  background-color: var(--accent-card-bg, rgba(255, 255, 255, 0.7));
+  border-color: rgb(var(--accent-100));
+  box-shadow: none;
+}
+
+[data-theme="dark"] .theme-bar {
+  background-color: var(--accent-card-bg, rgba(40, 40, 46, 0.9));
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .soft-button {
@@ -292,6 +313,7 @@ body {
   border: 1px solid rgb(var(--accent-100));
   box-shadow: 0 1px 2px rgba(var(--shadow-soft), 0.15);
   color: rgb(var(--accent-600));
+  resize: none;
   appearance: none;
 }
 
@@ -308,23 +330,6 @@ body {
 
 [data-theme="dark"] .soft-input {
   background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-[data-theme="dark"] .soft-input:focus {
-  border-color: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2),
-    0 10px 25px rgba(var(--shadow-soft), 0.25);
-}
-
-[data-theme="dark"] .soft-input option {
-  color: rgba(255, 255, 255, 0.9);
-  background-color: rgb(34, 34, 38);
-}
-
-[data-theme="dark"] .soft-input {
-  background-color: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.12);
   color: rgb(var(--accent-600));
 }
@@ -335,14 +340,19 @@ body {
     0 10px 25px rgba(var(--shadow-soft), 0.25);
 }
 
+[data-theme="dark"] .soft-input option {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgb(34, 34, 38);
+}
+
 .soft-glow {
   box-shadow: 0 0 0 2px rgba(var(--accent-400), 0.7),
-    0 10px 25px rgba(var(--shadow-soft), 0.35);
+    0 6px 18px rgba(var(--shadow-soft), 0.45);
 }
 
 .soft-glow.pastel-hover:hover {
   box-shadow: 0 0 0 2px rgba(var(--accent-400), 0.7),
-    0 10px 30px rgba(var(--shadow-soft), 0.45);
+    0 8px 22px rgba(var(--shadow-soft), 0.55);
 }
 
 .drag-hover {

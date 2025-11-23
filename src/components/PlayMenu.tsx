@@ -1,5 +1,18 @@
 import React from "react";
-import type { Timer, Block, LoopBlock, PlaySoundBlock, WaitBlock, WaitUntilBlock } from "../types";
+import { Howl } from "howler";
+import type {
+  Timer,
+  Block,
+  LoopBlock,
+  PlaySoundBlock,
+  PlaySoundUntilBlock,
+  WaitBlock,
+  WaitUntilBlock,
+  NotifyBlock,
+  NotifyUntilBlock
+} from "../types";
+import { unitToMs } from "../utils/time";
+import { getBlockConfig } from "../utils/blockConfig";
 
 const formatDuration = (seconds?: number): string | null => {
   if (seconds === undefined || Number.isNaN(seconds)) return null;
@@ -14,17 +27,32 @@ const formatDuration = (seconds?: number): string | null => {
   return `${Math.round(total * 10) / 10}s`;
 };
 
-const getSoundUrl = (block: PlaySoundBlock): string => {
+const formatCountdown = (ms: number | null): string | null => {
+  if (ms === null || Number.isNaN(ms)) return null;
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const mmss = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  if (h > 0) {
+    return `${h.toString().padStart(2, "0")}:${mmss}`;
+  }
+  return mmss;
+};
+
+const getSoundUrl = (block: PlaySoundBlock | PlaySoundUntilBlock): string => {
   const defaultUrl = "/sounds/alarm.mp3";
   const type = block.soundType === "custom" ? "url" : block.soundType ?? "default";
   return type === "default" ? defaultUrl : block.customUrl || defaultUrl;
 };
 
-const collectPlaySoundBlocks = (blocks: Block[]): PlaySoundBlock[] => {
-  const result: PlaySoundBlock[] = [];
+const collectPlaySoundBlocks = (blocks: Block[]): Array<PlaySoundBlock | PlaySoundUntilBlock> => {
+  const result: Array<PlaySoundBlock | PlaySoundUntilBlock> = [];
   for (const b of blocks) {
     if (b.type === "playSound") {
       result.push(b as PlaySoundBlock);
+    } else if (b.type === "playSoundUntil") {
+      result.push(b as PlaySoundUntilBlock);
     } else if (b.type === "loop") {
       result.push(...collectPlaySoundBlocks((b as LoopBlock).children));
     }
@@ -40,31 +68,12 @@ interface Props {
   onStop: () => void;
   isRunning: boolean;
   activeBlockId: string | null;
+  remainingMs: number | null;
 }
 
-const describeBlock = (block: Block, durations: Record<string, number>): string => {
-  if (block.type === "wait") {
-    const b = block as WaitBlock;
-    return `Wait ${b.amount || 0} ${b.unit}`;
-  }
-  if (block.type === "waitUntil") {
-    const b = block as WaitUntilBlock;
-    return `Wait until ${b.time || "--:--"} ${b.ampm}`;
-  }
-  if (block.type === "playSound") {
-    const b = block as PlaySoundBlock;
-    return `Play sound – ${b.label || "Sound"}`;
-  }
-  if (block.type === "notify") {
-    const b = block as any;
-    return `Notify – ${b.title || "Notification"}`;
-  }
-  if (block.type === "loop") {
-    const b = block as LoopBlock;
-    const count = b.repeat || 1;
-    return `Loop ${count} time${count === 1 ? "" : "s"}`;
-  }
-  return "Step";
+const describeBlock = (block: Block): string => {
+  const config = getBlockConfig(block.type);
+  return config.getDescription(block);
 };
 
 const BlockTree: React.FC<{
@@ -73,38 +82,66 @@ const BlockTree: React.FC<{
   collapsedMap: Record<string, boolean>;
   onToggleLoop: (id: string) => void;
   durationsMap: Record<string, number>;
+  remainingMs: number | null;
   depth?: number;
-}> = ({ blocks, activeBlockId, collapsedMap, onToggleLoop, durationsMap, depth = 0 }) => {
+}> = ({ blocks, activeBlockId, collapsedMap, onToggleLoop, durationsMap, remainingMs, depth = 0 }) => {
   return (
     <>
       {blocks.map((block) => {
         const isActive = block.id === activeBlockId;
-        const isContainer = block.type === "loop" || block.type === "notify";
+        const isContainer = block.type === "loop";
         const isCollapsed = isContainer ? collapsedMap[block.id] ?? true : false;
+        const config = getBlockConfig(block.type);
+        
+        const countdown = (() => {
+          if (!config.supportsCountdown || !isActive || remainingMs === null) {
+            return null;
+          }
+          
+          if (block.type === "wait") {
+            return formatCountdown(remainingMs);
+          }
+          if (block.type === "waitUntil") {
+            return formatCountdown(remainingMs);
+          }
+          if (block.type === "notifyUntil") {
+            return formatCountdown(remainingMs);
+          }
+          
+          return null;
+        })();
+        
         return (
           <div key={block.id} className="mb-1 mt-1">
             <div
-              className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-all ${
+              className={`pastel-card flex items-center justify-between rounded-xl px-3 py-2 text-xs transition-all ${
                 isActive
                   ? "bg-accent-100 text-accent-600 soft-glow"
-                  : "bg-white/70 text-accent-500 shadow-accent-faint"
+                  : "text-accent-500"
               }`}
               style={{ marginLeft: depth * 12 }}
             >
-              <span>{describeBlock(block, durationsMap)}</span>
-              {isContainer && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleLoop(block.id);
-                  }}
-                  className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-accent-400"
-                >
-                  <span className="inline-block">{isCollapsed ? "▶" : "▼"}</span>
-                  <span>Container</span>
-                </button>
-              )}
+              <span>{describeBlock(block)}</span>
+              <div className="flex items-center gap-2">
+                {countdown && (
+                  <span className="text-accent-500 font-mono text-[11px]">
+                    {countdown}
+                  </span>
+                )}
+                {isContainer && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleLoop(block.id);
+                    }}
+                    className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-accent-400"
+                  >
+                    <span className="inline-block">{isCollapsed ? "▶" : "▼"}</span>
+                    <span>Container</span>
+                  </button>
+                )}
+              </div>
             </div>
             {isContainer && !isCollapsed && (
               <BlockTree
@@ -113,6 +150,7 @@ const BlockTree: React.FC<{
                 collapsedMap={collapsedMap}
                 onToggleLoop={onToggleLoop}
                 durationsMap={durationsMap}
+                remainingMs={remainingMs}
                 depth={depth + 1}
               />
             )}
@@ -130,7 +168,8 @@ const PlayMenu: React.FC<Props> = ({
   onPlay,
   onStop,
   isRunning,
-  activeBlockId
+  activeBlockId,
+  remainingMs
 }) => {
   const [collapsedMap, setCollapsedMap] = React.useState<Record<string, boolean>>({});
   const [showSteps, setShowSteps] = React.useState(false);
@@ -145,11 +184,18 @@ const PlayMenu: React.FC<Props> = ({
           (b) =>
             new Promise<{ id: string; duration?: number }>((resolve) => {
               const url = getSoundUrl(b);
-              const audio = new Audio(url);
-              const onLoaded = () => resolve({ id: b.id, duration: audio.duration });
-              const onError = () => resolve({ id: b.id, duration: undefined });
-              audio.addEventListener("loadedmetadata", onLoaded, { once: true });
-              audio.addEventListener("error", onError, { once: true });
+              const howl = new Howl({
+                src: [url],
+                html5: true,
+                onload: () => {
+                  resolve({ id: b.id, duration: howl.duration() });
+                  howl.unload();
+                },
+                onloaderror: () => {
+                  resolve({ id: b.id, duration: undefined });
+                  howl.unload();
+                }
+              });
             })
         )
       );
@@ -248,6 +294,7 @@ const PlayMenu: React.FC<Props> = ({
                     collapsedMap={collapsedMap}
                     onToggleLoop={handleToggleLoop}
                     durationsMap={soundDurations}
+                    remainingMs={remainingMs}
                   />
                 ) : (
                   <p className="text-xs text-accent-400">

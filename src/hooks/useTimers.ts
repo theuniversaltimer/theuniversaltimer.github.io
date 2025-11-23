@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { Timer, TimerMode, Block } from "../types";
+import { useLocalStorage } from "usehooks-ts";
+import type { Timer, TimerMode } from "../types";
 import { createId } from "../utils/ids";
 
 const STORAGE_KEY = "timer-generator-timers";
@@ -33,45 +33,22 @@ const withDefaultMode = (timer: Timer): Timer & { mode: TimerMode } => ({
   mode: (timer as any).mode ?? "stopwatch"
 });
 
+const deserializeTimers = (value: string): Timer[] => {
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t) => t && typeof t.id === "string" && Array.isArray((t as any).blocks))
+      .map((t) => withDefaultMode(t as Timer));
+  } catch {
+    return [];
+  }
+};
+
 export function useTimers() {
-  const [timers, setTimers] = useState<Timer[]>([]);
-  const [hasLoaded, setHasLoaded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const safeLoad = (): Timer[] | null => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return null;
-        return parsed
-          .filter((t) => t && typeof t.id === "string" && Array.isArray((t as any).blocks))
-          .map((t) => withDefaultMode(t as Timer));
-      } catch {
-        return null;
-      }
-    };
-
-    const stored = safeLoad();
-    if (stored && stored.length) {
-      setTimers(stored);
-    } else {
-      setTimers([]);
-    }
-    setHasLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!hasLoaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
-    } catch {
-      // ignore write failures (e.g., storage blocked)
-    }
-  }, [timers, hasLoaded]);
+  const [timers, setTimers] = useLocalStorage<Timer[]>(STORAGE_KEY, [], {
+    deserializer: deserializeTimers
+  });
 
   const createTimer = () => {
     const created: Timer = {

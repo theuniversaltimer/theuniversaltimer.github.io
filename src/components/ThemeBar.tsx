@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
+import { motion } from "framer-motion";
 import type { ThemeName } from "../types";
+import { ThemeSwatch } from "./ThemeSwatch";
 
 const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
   { id: "white", label: "White", swatch: "#ffffff" },
@@ -17,85 +19,31 @@ interface Props {
 }
 
 const ThemeBar: React.FC<Props> = ({ theme, onChange }) => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const startRef = useRef({ x: 0, y: 0 });
-  const originRef = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!dragging) return;
-      const dx = e.clientX - startRef.current.x;
-      const dy = e.clientY - startRef.current.y;
-      setPosition({
-        x: originRef.current.x + dx,
-        y: originRef.current.y + dy
-      });
-    };
-
-    const handlePointerUp = () => {
-      if (dragging) {
-        setDragging(false);
-      }
-    };
-
-    if (dragging) {
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-    }
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-  }, [dragging]);
-
-  const startDrag: React.PointerEventHandler<HTMLDivElement> = (e) => {
-    const target = e.target as HTMLElement | null;
-    if (target && target.closest("button")) {
-      return;
-    }
-    e.preventDefault();
-    startRef.current = { x: e.clientX, y: e.clientY };
-    originRef.current = { ...position };
-    setDragging(true);
-  };
-
   return (
-    <div
-      className="fixed bottom-4 left-1/2 z-30"
-      style={{
-        transform: `translate(calc(-50% + ${position.x}px), ${position.y}px) scale(0.95)`
-      }}
-    >
-      <div
-        className="flex items-center gap-2 rounded-full bg-white/90 border border-accent-100 px-3 py-2 shadow-accent-soft cursor-grab active:cursor-grabbing select-none"
-        onPointerDown={startDrag}
+    <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2">
+      <motion.div
+        drag
+        dragMomentum={false}
+        dragElastic={0.12}
+        whileTap={{ scale: 0.97 }}
+        onPointerDown={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target && target.closest("button")) {
+            e.stopPropagation();
+          }
+        }}
+        className="theme-bar flex items-center gap-2 rounded-full border px-3 py-2 cursor-grab active:cursor-grabbing select-none"
       >
-        {themeOptions.map((option) => {
-          const isActive = option.id === theme;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onChange(option.id)}
-              aria-label={`Switch to ${option.label}`}
-              className={`h-9 w-9 rounded-full border-2 transition duration-200 ease-out focus:outline-none ${
-                isActive ? "scale-110" : "hover:scale-105"
-              }`}
-              style={{
-                backgroundColor: option.swatch,
-                borderColor: isActive
-                  ? `rgb(var(--accent-400))`
-                  : "rgba(0,0,0,0.05)",
-                boxShadow: isActive
-                  ? "0 0 0 4px rgba(255,255,255,0.8), 0 10px 18px rgba(0,0,0,0.12)"
-                  : "0 6px 14px rgba(0,0,0,0.08)"
-              }}
-            />
-          );
-        })}
-      </div>
+        {themeOptions.map((option) => (
+          <ThemeSwatch
+            key={option.id}
+            color={option.swatch}
+            label={option.label}
+            isActive={option.id === theme}
+            onClick={() => onChange(option.id)}
+          />
+        ))}
+      </motion.div>
     </div>
   );
 };

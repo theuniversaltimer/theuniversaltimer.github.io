@@ -1,7 +1,14 @@
 export type TimeUnit = "seconds" | "minutes" | "hours" | "days";
 export type AmPm = "AM" | "PM";
 
-export type BlockType = "loop" | "wait" | "waitUntil" | "playSound" | "notify";
+export type BlockType =
+  | "loop"
+  | "wait"
+  | "waitUntil"
+  | "playSound"
+  | "playSoundUntil"
+  | "notify"
+  | "notifyUntil";
 
 export interface BaseBlock {
   id: string;
@@ -33,14 +40,37 @@ export interface PlaySoundBlock extends BaseBlock {
   customUrl?: string;
 }
 
+export interface PlaySoundUntilBlock extends BaseBlock {
+  type: "playSoundUntil";
+  soundType: "default" | "url" | "upload" | "custom";
+  label: string;
+  customUrl?: string;
+}
+
 export interface NotifyBlock extends BaseBlock {
   type: "notify";
   title: string;
   body?: string;
-  children?: Block[];
 }
 
-export type Block = LoopBlock | WaitBlock | WaitUntilBlock | PlaySoundBlock | NotifyBlock;
+export interface NotifyUntilBlock extends BaseBlock {
+  type: "notifyUntil";
+  title: string;
+  body?: string;
+  timeoutMs?: number;
+  soundType?: "default" | "url" | "upload" | "custom";
+  customUrl?: string;
+  interval?: number;
+}
+
+export type Block =
+  | LoopBlock
+  | WaitBlock
+  | WaitUntilBlock
+  | PlaySoundBlock
+  | PlaySoundUntilBlock
+  | NotifyBlock
+  | NotifyUntilBlock;
 
 export interface Timer {
   id: string;

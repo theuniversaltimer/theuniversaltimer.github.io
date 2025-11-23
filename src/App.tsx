@@ -6,8 +6,14 @@ import TimerGrid from "./components/TimerGrid";
 import PlayMenu from "./components/PlayMenu";
 import TimerEditor from "./components/TimerEditor";
 import ThemeBar from "./components/ThemeBar";
-import { createId } from "./utils/ids";
 import { sanitizeTimeInput } from "./utils/time";
+import {
+  makeWait,
+  makeWaitUntil,
+  makeNotifyUntil,
+  makeLoop,
+  buildTimer
+} from "./utils/timerTemplates";
 
 type View = "grid" | "editor";
 
@@ -36,7 +42,7 @@ const App: React.FC = () => {
     return "pink";
   });
 
-  const { isRunning, getActiveBlockId, start, stop } = useMultiTimerRunner();
+  const { isRunning, getActiveBlockId, getRemainingMs, start, stop } = useMultiTimerRunner();
 
   const selectedTimer: Timer | undefined = timers.find(
     (t) => t.id === selectedTimerId
@@ -67,6 +73,9 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTimer = (timer: Timer) => {
+    if (isRunning(timer.id)) {
+      stop(timer.id);
+    }
     if (selectedTimerId === timer.id) {
       setSelectedTimerId(null);
     }
@@ -100,35 +109,21 @@ const App: React.FC = () => {
     const timer = createTimer();
     if (!timer) return;
 
-    const notify = {
-      id: createId(),
-      type: "notify" as const,
-      title: "Timer complete",
-      body: ""
-    };
+    const waitBlockUnit =
+      normalizedSeconds === 0 ? "minutes" : normalizedMinutes === 0 ? "seconds" : "seconds";
+    const waitBlockAmount =
+      normalizedSeconds === 0
+        ? Math.max(1, normalizedMinutes)
+        : normalizedMinutes === 0
+        ? normalizedSeconds
+        : totalSeconds;
 
     const blocks = [
-      {
-        id: createId(),
-        type: "wait" as const,
-        amount: totalSeconds,
-        unit: "seconds" as const
-      },
-      notify,
-      {
-        id: createId(),
-        type: "playSound" as const,
-        soundType: "default" as const,
-        label: "Alarm"
-      }
+      makeWait(waitBlockAmount, waitBlockUnit),
+      makeNotifyUntil("Timer complete", "")
     ];
 
-    const updated: Timer = {
-      ...timer,
-      name: "Quick Timer",
-      mode: "stopwatch",
-      blocks
-    };
+    const updated = buildTimer(timer, "Quick Timer", "stopwatch", blocks);
 
     updateTimer(updated);
     setPendingNewTimerId(null);
@@ -147,43 +142,16 @@ const App: React.FC = () => {
     const workMinutes = Math.max(1, Math.min(180, Math.floor(Number(pomoWorkMinutes) || 25)));
     const breakMinutes = Math.max(1, Math.min(120, Math.floor(Number(pomoBreakMinutes) || 5)));
 
-    const makeWait = (amount: number, unit: "minutes") => ({
-      id: createId(),
-      type: "wait" as const,
-      amount,
-      unit
-    });
-
-    const notify = (label: string) => ({
-      id: createId(),
-      type: "notify" as const,
-      title: label,
-      body: "A chime will play now."
-    });
-
-    const chime = {
-      id: createId(),
-      type: "playSound" as const,
-      soundType: "default" as const,
-      label: "Alarm"
-    };
-
     const work = makeWait(workMinutes, "minutes");
     const shortBreak = makeWait(breakMinutes, "minutes");
+    const loop = makeLoop(4, [
+      work,
+      makeNotifyUntil("Work complete", "A chime will play now.", 5000),
+      shortBreak,
+      makeNotifyUntil("Break complete", "A chime will play now.", 5000)
+    ]);
 
-    const loop = {
-      id: createId(),
-      type: "loop" as const,
-      repeat: 4,
-      children: [work, notify("Work complete"), chime, shortBreak, notify("Break complete"), chime]
-    };
-
-    const updated: Timer = {
-      ...timer,
-      name: "Pomodoro",
-      mode: "stopwatch",
-      blocks: [loop]
-    };
+    const updated = buildTimer(timer, "Pomodoro", "stopwatch", [loop]);
 
     updateTimer(updated);
     setPendingNewTimerId(null);
@@ -202,44 +170,23 @@ const App: React.FC = () => {
     const timer = createTimer();
     if (!timer) return;
 
-    const waitUntilBlock = {
-      id: createId(),
-      type: "waitUntil" as const,
-      time: `${hh}:${mm}`,
-      ampm: alarmAmpm
-    };
-
-    const notify = {
-      id: createId(),
-      type: "notify" as const,
-      title: repeatDaily ? "Daily alarm" : "Alarm",
-      body: "Alarm is about to play."
-    };
-
-    const soundBlock = {
-      id: createId(),
-      type: "playSound" as const,
-      soundType: "default" as const,
-      label: "Alarm"
-    };
+    const waitUntilBlock = makeWaitUntil(`${hh}:${mm}`, alarmAmpm);
+    const notifyUntilBlock = makeNotifyUntil(
+      repeatDaily ? "Daily alarm" : "Alarm",
+      "Alarm is about to play.",
+      60000
+    );
 
     const blocks = repeatDaily
-      ? [
-          {
-            id: createId(),
-            type: "loop" as const,
-            repeat: -1,
-            children: [waitUntilBlock, notify, soundBlock]
-          }
-        ]
-      : [waitUntilBlock, notify, soundBlock];
+      ? [makeLoop(-1, [waitUntilBlock, notifyUntilBlock])]
+      : [waitUntilBlock, notifyUntilBlock];
 
-    const updated: Timer = {
-      ...timer,
-      name: repeatDaily ? "Daily Alarm" : "Quick Alarm",
-      mode: "alarm",
+    const updated = buildTimer(
+      timer,
+      repeatDaily ? "Daily Alarm" : "Quick Alarm",
+      "alarm",
       blocks
-    };
+    );
 
     updateTimer(updated);
     setPendingNewTimerId(null);
@@ -314,6 +261,7 @@ const App: React.FC = () => {
             isVisible={!!selectedTimer}
             activeBlockId={getActiveBlockId(selectedTimerId)}
             isRunning={isRunning(selectedTimerId)}
+            remainingMs={selectedTimerId ? getRemainingMs(selectedTimerId) : null}
             onClose={() => setSelectedTimerId(null)}
             onPlay={() => selectedTimer && start(selectedTimer)}
             onStop={() => selectedTimerId && stop(selectedTimerId)}

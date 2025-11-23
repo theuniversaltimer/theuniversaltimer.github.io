@@ -1,0 +1,12 @@
+.drop-line {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(calc(-50% + 1px));
+  height: 3px;
+  border-top: 2px dashed rgba(var(--accent-400), 0.6);
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: 0 2px 8px rgba(var(--shadow-soft), 0.25);
+}
