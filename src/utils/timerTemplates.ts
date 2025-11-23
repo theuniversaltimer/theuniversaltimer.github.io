@@ -40,7 +40,7 @@ export const makeNotifyUntil = (
   title: string,
   body: string = "",
   timeoutMs: number = 10000,
-  interval: number = 0.8
+  interval: number = 0.3
 ): NotifyUntilBlock => ({
   id: createId(),
   type: "notifyUntil",
