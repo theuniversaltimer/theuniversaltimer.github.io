@@ -14,4 +14,6 @@
 .draggable-card,
 .palette-draggable {
   touch-action: none; /* prevent touch scrolling from cancelling drag */
+  -webkit-user-drag: none;
+  user-select: none;
 }

@@ -64,23 +64,26 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
   const [overlayBlock, setOverlayBlock] = useState<Block | null>(null);
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [activeDragData, setActiveDragData] = useState<DragMeta | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const sensors = useSensors(
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 120, tolerance: 8 }
+    }),
     useSensor(PointerSensor, {
       activationConstraint: { distance: 4 }
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { distance: 6 }
     })
   );
 
   const resetDrag = () => {
     setOverlayBlock(null);
+    setIsDragActive(false);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as DragMeta | undefined;
     if (!data) return;
+    setIsDragActive(true);
     setActiveDragData(data);
     if (data.kind === "existing") {
       const block = findBlockById(draft.blocks, data.blockId);
@@ -123,6 +126,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     resetDrag();
     setDraggingBlockId(null);
     setActiveDragData(null);
+    setIsDragActive(false);
   };
 
   const sidebarBlocks = useMemo(
@@ -416,7 +420,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     : draft.blocks;
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={{ touchAction: isDragActive ? "none" : "auto" }}>
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}

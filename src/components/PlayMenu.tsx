@@ -228,8 +228,8 @@ const PlayMenu: React.FC<Props> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="w-full max-w-4xl mb-4 animate-slide-down-soft max-h-[70vh] overflow-y-auto">
-      <div className="pastel-card pastel-hover p-4 flex flex-col gap-3 max-h-[68vh] overflow-y-auto">
+    <div className="w-full max-w-4xl mb-4 animate-slide-down-soft">
+      <div className="pastel-card pastel-hover p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col">
             <span className="text-xs uppercase tracking-wide text-accent-300">

@@ -34,7 +34,7 @@ export const DropZone: React.FC<{
   }`.trim();
 
   return (
-    <div ref={setNodeRef} className={combinedClass}>
+    <div ref={setNodeRef} className={combinedClass} style={{ touchAction: "none" }}>
       {typeof children === "function" ? children(isOver) : children}
     </div>
   );
@@ -85,7 +85,8 @@ export const DraggableCard: React.FC<{
   const style: React.CSSProperties = {
     transform: transform
       ? CSS.Translate.toString({ x: 0, y: transform.y, scaleX: 1, scaleY: 1 })
-      : undefined
+      : undefined,
+    touchAction: "none"
   };
 
   return <>{children({ setNodeRef, attributes, listeners: filteredListeners, style, isDragging })}</>;
