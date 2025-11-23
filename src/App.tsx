@@ -44,6 +44,18 @@ const App: React.FC = () => {
 
   const { isRunning, getActiveBlockId, getRemainingMs, start, stop } = useMultiTimerRunner();
 
+  // Prevent body scroll when overlay is open
+  useEffect(() => {
+    if (showTemplatePicker || timerPendingDelete) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showTemplatePicker, timerPendingDelete]);
+
   const selectedTimer: Timer | undefined = timers.find(
     (t) => t.id === selectedTimerId
   );
@@ -296,8 +308,11 @@ const App: React.FC = () => {
       <ThemeBar theme={theme} onChange={setTheme} />
 
       {view === "grid" && showTemplatePicker && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm px-4">
-          <div className="pastel-card w-full max-w-4xl p-6 shadow-accent-soft">
+        <>
+          <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm pointer-events-none" />
+          <div className="fixed inset-0 z-40 overflow-y-scroll">
+          <div className="min-h-screen flex items-start justify-center px-4 py-6 sm:py-12">
+            <div className="pastel-card w-full max-w-4xl shadow-accent-soft p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-accent-300">
@@ -567,12 +582,17 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+          </div>
+        </>
       )}
 
       {timerPendingDelete && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm px-4">
-          <div className="pastel-card w-full max-w-sm p-5 shadow-accent-soft">
+        <>
+          <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm pointer-events-none" />
+          <div className="fixed inset-0 z-40 overflow-y-scroll">
+          <div className="min-h-screen flex items-start justify-center px-4 py-6 sm:py-12">
+            <div className="pastel-card w-full max-w-sm shadow-accent-soft p-5">
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <p className="text-xs uppercase tracking-wide text-accent-300">
@@ -615,7 +635,9 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+          </div>
+        </>
       )}
     </>
   );

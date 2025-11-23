@@ -15,7 +15,7 @@ export const BLOCK_CONFIGS: Record<string, BlockConfig> = {
       return `Wait ${wait.amount || 0} ${wait.unit}`;
     },
     supportsCountdown: true,
-    getCountdownMs: () => null // Set by runner
+    getCountdownMs: () => null
   },
   waitUntil: {
     label: "Wait Until",
@@ -24,7 +24,7 @@ export const BLOCK_CONFIGS: Record<string, BlockConfig> = {
       return `Wait until ${waitUntil.time || "--:--"} ${waitUntil.ampm}`;
     },
     supportsCountdown: true,
-    getCountdownMs: () => null // Set by runner
+    getCountdownMs: () => null
   },
   playSound: {
     label: "Play Sound",
