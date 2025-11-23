@@ -8,7 +8,7 @@ A flexible, visual timer and alarm app built with React and TypeScript. Perfect 
 
 ## Features
 
-- **CRUD Editor:** Drag blocks to customize your timers.  
+- **CRUD Editor:** Drag, drop, and reorder blocks to customize your timers.  
 - **Templates:** Get started quickly without learning the editor.  
 - **Block Types:**
   - **Wait:** Pause for a set duration  
