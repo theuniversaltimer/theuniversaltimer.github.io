@@ -1,0 +1,35 @@
+.drop-line {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(calc(-50% + 1px));
+  height: 3px;
+  border-top: 2px dashed rgba(var(--accent-400), 0.6);
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: 0 2px 8px rgba(var(--shadow-soft), 0.25);
+}
+
+.draggable-card,
+.palette-draggable {
+  touch-action: none; /* prevent touch scrolling from cancelling drag */
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Hard-stop sidebar palette width so labels don't stretch */
+.palette-column {
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+  flex: 0 0 150px !important;
+  box-sizing: border-box !important;
+}
+
+.palette-draggable {
+  width: 150px !important;
+  max-width: 150px !important;
+  min-width: 150px !important;
+  box-sizing: border-box !important;
+}
