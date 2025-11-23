@@ -37,9 +37,9 @@ const App: React.FC = () => {
   const [tempEditorTimer, setTempEditorTimer] = useState<Timer | null>(null);
   const [theme, setTheme] = useState<ThemeName>(() => {
     if (typeof window !== "undefined") {
-      return ((localStorage.getItem("alarm-theme") as ThemeName) || "pink") as ThemeName;
+      return ((localStorage.getItem("alarm-theme") as ThemeName) || "dark") as ThemeName;
     }
-    return "pink";
+    return "dark";
   });
 
   const { isRunning, getActiveBlockId, getRemainingMs, start, stop } = useMultiTimerRunner();
