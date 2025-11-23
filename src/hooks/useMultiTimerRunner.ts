@@ -34,7 +34,7 @@ export function useMultiTimerRunner() {
   const resolveRef = useRef<(() => void) | null>(null);
   const [playInternal, { sound: activeSound, stop: stopInternal }] = useSound(activeSrc, {
     volume: 0.8,
-    interrupt: true,
+    interrupt: false,
     onloaderror: () => {
       if (resolveRef.current) {
         resolveRef.current();
@@ -72,8 +72,10 @@ export function useMultiTimerRunner() {
     (url: string) =>
       new Promise<void>((resolve) => {
         const targetUrl = url || "/sounds/alarm.mp3";
-        resolveRef.current = resolve;
+        
         if (targetUrl === activeSrc && activeSound) {
+          // Same sound, play immediately
+          resolveRef.current = resolve;
           const finish = () => {
             activeSound.off("end", finish);
             activeSound.off("stop", finish);
@@ -85,9 +87,11 @@ export function useMultiTimerRunner() {
           activeSound.once("end", finish);
           activeSound.once("stop", finish);
           playInternal();
-          return;
+        } else {
+          // Different sound, need to wait for useEffect to set it up
+          resolveRef.current = resolve;
+          setActiveSrc(targetUrl);
         }
-        setActiveSrc(targetUrl);
       }),
     [activeSrc, activeSound, playInternal]
   );
