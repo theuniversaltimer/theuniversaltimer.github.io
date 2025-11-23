@@ -104,10 +104,14 @@ export async function runNotifyUntil(
 ): Promise<void> {
   let done = false;
   const timeoutMs = block.timeoutMs ?? 10000;
-  const soundType = block.soundType === "custom" ? "url" : block.soundType ?? "default";
-  const defaultUrl = "/sounds/alarm.mp3";
-  const url = soundType === "default" ? defaultUrl : block.customUrl || defaultUrl;
-  const interval = Math.max(0.1, block.interval ?? 0.5);
+  const intervalMs = Math.max(100, Math.round((block.interval ?? 0.5) * 1000));
+  const soundBlock: PlaySoundUntilBlock = {
+    id: `${block.id}-sound`,
+    type: "playSoundUntil",
+    soundType: block.soundType ?? "default",
+    customUrl: block.customUrl,
+    label: block.label || block.title || "Beep"
+  };
 
   const waitPromise = new Promise<void>((resolve) => {
     let timerId: number | undefined;
@@ -136,13 +140,13 @@ export async function runNotifyUntil(
 
   (async () => {
     while (!done && !ctx.abort()) {
-      if (ctx.abort()) break;
+      // Wait for the sound to finish playing completely
+      await runPlaySound(soundBlock, ctx);
 
-      await ctx.playSoundOnce(url);
+      if (done || ctx.abort()) break;
 
-      if (!done && !ctx.abort()) {
-        await sleep(interval * 1000);
-      }
+      // Only start counting the interval pause after the sound is done
+      await sleep(intervalMs);
     }
   })();
 

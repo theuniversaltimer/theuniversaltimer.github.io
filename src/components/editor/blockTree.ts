@@ -94,6 +94,7 @@ export const createDefaultBlock = (type: BlockType): Block => {
         type: "notifyUntil",
         title: "Reminder",
         body: "Your timer is running.",
+        label: "Beep",
         timeoutMs: 10000,
         soundType: "default",
         interval: 0.8

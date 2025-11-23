@@ -57,6 +57,7 @@ export interface NotifyUntilBlock extends BaseBlock {
   type: "notifyUntil";
   title: string;
   body?: string;
+  label?: string;
   timeoutMs?: number;
   soundType?: "default" | "url" | "upload" | "custom";
   customUrl?: string;

@@ -46,6 +46,7 @@ export const makeNotifyUntil = (
   type: "notifyUntil",
   title,
   body,
+   label: "Beep",
   timeoutMs,
   soundType: "default",
   interval
