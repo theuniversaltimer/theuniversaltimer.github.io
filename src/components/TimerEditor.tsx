@@ -71,6 +71,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
   const [activeDragData, setActiveDragData] = useState<DragMeta | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const blockSizeRef = useRef<Map<string, number>>(new Map());
   const blockNodeRefs = useRef<Map<string, HTMLElement>>(new Map());
   const initialTimerRef = useRef<Timer>(normalizeTimer(timer));
@@ -151,14 +152,20 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
   };
 
   const handleBackClick = () => {
-    if (
-      hasUnsavedChanges &&
-      typeof window !== "undefined" &&
-      !window.confirm("You have unsaved changes. Leave without saving?")
-    ) {
+    if (hasUnsavedChanges) {
+      setShowUnsavedConfirm(true);
       return;
     }
     onBack();
+  };
+
+  const handleConfirmLeave = () => {
+    setShowUnsavedConfirm(false);
+    onBack();
+  };
+
+  const handleCancelLeave = () => {
+    setShowUnsavedConfirm(false);
   };
 
   useEffect(() => {
@@ -602,6 +609,54 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
             renderBlock(block, 0, false, false, false, true, true, true)
           }
         />
+
+        {showUnsavedConfirm && (
+          <>
+            <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm pointer-events-none" />
+            <div className="fixed inset-0 z-40 overflow-y-scroll">
+              <div className="min-h-screen flex items-start justify-center px-4 py-6 sm:py-12">
+                <div className="pastel-card w-full max-w-sm shadow-accent-soft p-5">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-accent-300">
+                        Unsaved changes
+                      </p>
+                      <p className="text-base font-semibold text-accent-600">
+                        Leave without saving?
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelLeave}
+                      className="soft-button bg-accent-50 hover:bg-accent-100 text-xs px-2 py-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-sm text-accent-400 mb-5">
+                    You have unsaved changes. Leaving now will discard them.
+                  </p>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCancelLeave}
+                      className="soft-button bg-accent-50 hover:bg-accent-100 text-accent-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmLeave}
+                      className="soft-button-primary"
+                    >
+                      Leave
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </DndContext>
     </div>
   );
