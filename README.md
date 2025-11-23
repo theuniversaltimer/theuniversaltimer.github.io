@@ -1,24 +1,29 @@
-# The Universal Timer
+# Universal Timer
 
-A flexible, visual timer and alarm application built with React and TypeScript.
+A flexible, visual timer and alarm app built with **React** and **TypeScript**. Perfect for everything from simple alarms to Pomodoro timers.  
 
-🔗 **Live Demo**: [https://theuniversaltimer.github.io](https://theuniversaltimer.github.io)
+**Try it out:** [Live Demo](https://theuniversaltimer.github.io)
+
+---
 
 ## Features
 
-- **Visual Timer Builder**: Drag-and-drop interface to create custom timers
-- **Multiple Block Types**:
-  - Wait: Pause for a duration
-  - Wait Until: Pause until a specific time
-  - Play Sound: Play audio
-  - Play Sound Until: Play audio and wait until it finishes
-  - Notify: Show desktop notifications
-  - Notify Until: Show notifications with timeout and repeat interval
-  - Loop: Repeat blocks multiple times or forever
-- **Theme Support**: Multiple color themes
-- **Stopwatch & Alarm Modes**: Different timer modes for various use cases
+- **CRUD Editor:** Drag blocks to customize your timers.  
+- **Templates:** Get started quickly without learning the editor.  
+- **Block Types:**
+  - **Wait:** Pause for a set duration  
+  - **Wait Until:** Pause until a specific time  
+  - **Play Sound:** Play an audio clip  
+  - **Play Sound Until:** Play audio and wait until it finishes  
+  - **Notify:** Show desktop notifications  
+  - **Notify Until:** Notifications with timeout and repeat options  
+  - **Loop:** Repeat blocks a set number of times or indefinitely  
+- **Themes:** Choose from multiple color themes  
+- **Flexible** Drag-and-drop editor supports bedtime alarms, workout routines, or anything in between!
 
-## Development
+---
+
+## Getting Started (Development)
 
 ```bash
 # Install dependencies
@@ -30,27 +35,5 @@ npm run dev
 # Build for production
 npm run build
 
-# Preview production build
+# Preview the production build
 npm run preview
-```
-
-## Deployment
-
-- GitHub Pages is deployed via Actions using `.github/workflows/deploy.yml`.
-- Any push to `main` triggers a fresh build and publish from `dist/`.
-- You can also trigger it manually from the Actions tab (`Deploy to GitHub Pages`).
-- In the repository settings, set GitHub Pages source to "GitHub Actions".
-
-## Tech Stack
-
-- **React** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling
-- **@dnd-kit** - Drag and drop functionality
-- **Howler.js** - Audio playback
-
-## License
-
-- Version: 1.0.0
-- This project is licensed under the MIT License. See `LICENSE` for details.
