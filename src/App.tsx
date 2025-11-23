@@ -307,6 +307,28 @@ const App: React.FC = () => {
 
       <ThemeBar theme={theme} onChange={setTheme} />
 
+      <footer className="fixed bottom-3 right-4 z-20">
+        <div className="inline-flex items-center gap-2 rounded-full bg-accent-50-90 border border-accent-100 px-3 py-1 text-[11px] sm:text-xs text-accent-400 shadow-accent-faint backdrop-blur">
+          <a
+            href="https://github.com/theuniversaltimer/theuniversaltimer.github.io"
+            className="font-medium text-accent-500 hover:text-accent-600"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub repo
+          </a>
+          <span className="text-accent-300">•</span>
+          <a
+            href="https://github.com/theuniversaltimer/theuniversaltimer.github.io/blob/main/LICENSE"
+            className="hover:text-accent-500"
+            target="_blank"
+            rel="noreferrer"
+          >
+            MIT License
+          </a>
+        </div>
+      </footer>
+
       {view === "grid" && showTemplatePicker && (
         <>
           <div className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm pointer-events-none" />
