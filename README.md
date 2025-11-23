@@ -34,6 +34,13 @@ npm run build
 npm run preview
 ```
 
+## Deployment
+
+- GitHub Pages is deployed via Actions using `.github/workflows/deploy.yml`.
+- Any push to `main` triggers a fresh build and publish from `dist/`.
+- You can also trigger it manually from the Actions tab (`Deploy to GitHub Pages`).
+- In the repository settings, set GitHub Pages source to "GitHub Actions".
+
 ## Tech Stack
 
 - **React** - UI framework
