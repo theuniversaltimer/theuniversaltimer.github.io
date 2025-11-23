@@ -1,6 +1,6 @@
 # Universal Timer
 
-A flexible, visual timer and alarm app built with **React** and **TypeScript**. Perfect for everything from simple alarms to Pomodoro timers.  
+A flexible, visual timer and alarm app built with React and TypeScript. Perfect for everything from simple alarms to Pomodoro timers.  
 
 **Try it out:** [Live Demo](https://theuniversaltimer.github.io)
 
