@@ -563,12 +563,12 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
               <button
                 type="button"
                 onClick={handleExport}
-                className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-2 shrink-0"
-                aria-label="Export timer"
-                title="Export timer"
-              >
-                ⬇ Export
-              </button>
+              className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-2 shrink-0"
+              aria-label="Export timer"
+              title="Export timer"
+            >
+              Export
+            </button>
             </div>
             <button
               onClick={() => onSave(draft)}

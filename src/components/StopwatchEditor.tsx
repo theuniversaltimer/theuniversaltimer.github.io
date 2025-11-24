@@ -100,12 +100,12 @@ const StopwatchEditor: React.FC<Props> = ({ timer, onBack, onSave }) => {
             <button
               type="button"
               onClick={handleExport}
-              className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-2 shrink-0"
-              aria-label="Export stopwatch"
-              title="Export stopwatch"
-            >
-              ⬇ Export
-            </button>
+            className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-2 shrink-0"
+            aria-label="Export stopwatch"
+            title="Export stopwatch"
+          >
+            Export
+          </button>
             <button
               type="button"
               onClick={handleBack}
