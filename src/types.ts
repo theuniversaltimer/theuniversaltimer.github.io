@@ -78,6 +78,11 @@ export interface Timer {
   name: string;
   blocks: Block[];
   mode?: TimerMode;
+  /**
+   * When true, the timer is template-only (not editable in the editor).
+   */
+  locked?: boolean;
+  logs?: StopwatchLog[];
 }
 
 export type ThemeName =
@@ -89,4 +94,11 @@ export type ThemeName =
   | "white"
   | "dark";
 
-export type TimerMode = "alarm" | "stopwatch";
+export type TimerMode = "alarm" | "stopwatch" | "simpleStopwatch";
+
+export interface StopwatchLog {
+  id: string;
+  name: string;
+  elapsedMs: number;
+  loggedAt: number;
+}

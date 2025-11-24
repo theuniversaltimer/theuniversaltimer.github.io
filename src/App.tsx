@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useTimers } from "./hooks/useTimers";
 import { useMultiTimerRunner } from "./hooks/useMultiTimerRunner";
-import type { Timer, ThemeName } from "./types";
+import type { Timer, ThemeName, StopwatchLog } from "./types";
 import TimerGrid from "./components/TimerGrid";
 import PlayMenu from "./components/PlayMenu";
 import TimerEditor from "./components/TimerEditor";
+import StopwatchEditor from "./components/StopwatchEditor";
 import ThemeBar from "./components/ThemeBar";
 import { sanitizeTimeInput } from "./utils/time";
+import { createId } from "./utils/ids";
+import { format } from "date-fns";
+import { TimerSchema } from "./schemas/timer";
 import {
   makeWait,
   makeWaitUntil,
@@ -17,8 +21,10 @@ import {
 
 type View = "grid" | "editor";
 
+const formatLogName = (ms: number): string => format(ms, "MM/dd/yy hh:mm:ss a");
+
 const App: React.FC = () => {
-  const { timers, createTimer, updateTimer, deleteTimer } = useTimers();
+  const { timers, createTimer, updateTimer, deleteTimer, ready } = useTimers();
   const [view, setView] = useState<View>("grid");
   const [selectedTimerId, setSelectedTimerId] = useState<string | null>(null);
   const [editorTimerId, setEditorTimerId] = useState<string | null>(null);
@@ -26,7 +32,7 @@ const App: React.FC = () => {
   const [timerPendingDelete, setTimerPendingDelete] = useState<Timer | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<
-    "timer" | "alarm" | "daily" | "pomodoro" | "custom" | null
+    "timer" | "alarm" | "daily" | "pomodoro" | "custom" | "stopwatch" | "import" | null
   >("timer");
   const [quickMinutes, setQuickMinutes] = useState(5);
   const [quickSeconds, setQuickSeconds] = useState(0);
@@ -34,7 +40,9 @@ const App: React.FC = () => {
   const [pomoBreakMinutes, setPomoBreakMinutes] = useState(5);
   const [alarmTime, setAlarmTime] = useState("07:00");
   const [alarmAmpm, setAlarmAmpm] = useState<"AM" | "PM">("AM");
+  const [importCsvText, setImportCsvText] = useState<string>("");
   const [tempEditorTimer, setTempEditorTimer] = useState<Timer | null>(null);
+  const [hasStartedMap, setHasStartedMap] = useState<Record<string, boolean>>({});
   const [theme, setTheme] = useState<ThemeName>(() => {
     if (typeof window !== "undefined") {
       return ((localStorage.getItem("alarm-theme") as ThemeName) || "dark") as ThemeName;
@@ -42,7 +50,17 @@ const App: React.FC = () => {
     return "dark";
   });
 
-  const { isRunning, getActiveBlockId, getRemainingMs, start, stop } = useMultiTimerRunner();
+  const {
+    isRunning,
+    getActiveBlockId,
+    getRemainingMs,
+    getElapsedMs,
+    start,
+    pause,
+    restart,
+    stop,
+    resetStopwatch
+  } = useMultiTimerRunner();
 
   // Prevent body scroll when overlay is open
   useEffect(() => {
@@ -67,7 +85,149 @@ const App: React.FC = () => {
     editorTimerFromState ??
     (tempEditorTimer?.id === editorTimerId ? tempEditorTimer : tempEditorTimer ?? undefined);
 
+  const handlePlaySelected = () => {
+    if (!selectedTimer) return;
+    setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: true }));
+    start(selectedTimer);
+  };
+
+  const handlePauseSelected = () => {
+    if (!selectedTimer) return;
+    pause(selectedTimer);
+  };
+
+  const handleRestartSelected = () => {
+    if (!selectedTimer) return;
+    if (selectedTimer.mode === "simpleStopwatch") {
+      resetStopwatch(selectedTimer.id);
+      stop(selectedTimer.id);
+      setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: false }));
+    } else {
+      setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: true }));
+      restart(selectedTimer);
+    }
+  };
+
+  const handleMarkSelected = () => {
+    if (!selectedTimer || selectedTimer.mode !== "simpleStopwatch") return;
+    const elapsed = getElapsedMs(selectedTimer.id) ?? 0;
+    const loggedAt = Date.now();
+    const entry = {
+      id: createId(),
+      name: formatLogName(loggedAt),
+      elapsedMs: elapsed,
+      loggedAt
+    } as StopwatchLog;
+    const updated: Timer = {
+      ...selectedTimer,
+      logs: [...(selectedTimer.logs ?? []), entry]
+    };
+    updateTimer(updated);
+  };
+
+  const parseImportedAlarms = (text: string): Array<{
+    name: string;
+    time: string;
+    ampm: "AM" | "PM";
+    repeat: "once" | "daily";
+  }> => {
+    const rows = text
+      .split(/\r?\n/)
+      .map((r) => r.trim())
+      .filter(Boolean);
+    if (!rows.length) return [];
+
+    const headers = rows[0].split(",").map((h) => h.trim().toLowerCase());
+    const nameIdx = headers.indexOf("name");
+    const timeIdx = headers.indexOf("time");
+    const ampmIdx = headers.indexOf("ampm");
+    const repeatIdx = headers.indexOf("repeat");
+
+    const entries: Array<{
+      name: string;
+      time: string;
+      ampm: "AM" | "PM";
+      repeat: "once" | "daily";
+    }> = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const cells = rows[i].split(",").map((c) => c.trim());
+      if (timeIdx === -1 || cells.length <= timeIdx) continue;
+      const rawTime = cells[timeIdx] || "";
+      const safeTime = sanitizeTimeInput(rawTime, "07:00");
+      const ampmVal =
+        ampmIdx !== -1 && cells[ampmIdx]
+          ? (cells[ampmIdx].toUpperCase() === "PM" ? "PM" : "AM")
+          : "AM";
+      const repeatVal =
+        repeatIdx !== -1 && cells[repeatIdx].toLowerCase() === "daily"
+          ? "daily"
+          : "once";
+      const nameVal =
+        nameIdx !== -1 && cells[nameIdx]
+          ? cells[nameIdx]
+          : `Imported Alarm ${entries.length + 1}`;
+
+      entries.push({
+        name: nameVal,
+        time: safeTime,
+        ampm: ampmVal,
+        repeat: repeatVal
+      });
+    }
+
+    return entries;
+  };
+
+  const handleImportCsv = () => {
+    const parsed = parseImportedAlarms(importCsvText);
+    if (!parsed.length) {
+      alert("No alarms found in CSV. Expected headers: name,time,ampm,repeat.");
+      return;
+    }
+
+    parsed.forEach(({ name, time, ampm, repeat }) => {
+      const timer = createTimer();
+      if (!timer) return;
+
+      const waitUntilBlock = makeWaitUntil(time, ampm);
+      const notifyUntilBlock = makeNotifyUntil(
+        repeat === "daily" ? "Daily alarm" : "Alarm",
+        "Alarm is about to play.",
+        60000
+      );
+
+      const blocks =
+        repeat === "daily"
+          ? [makeLoop(-1, [waitUntilBlock, notifyUntilBlock])]
+          : [waitUntilBlock, notifyUntilBlock];
+
+      const updated = buildTimer(timer, name, "alarm", blocks);
+      updateTimer(updated);
+    });
+
+    setImportCsvText("");
+    setPendingNewTimerId(null);
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
+    setSelectedTemplate("timer");
+    setShowTemplatePicker(false);
+    setView("grid");
+  };
+
+  const handleLogSelected = () => {
+    if (!selectedTimer || selectedTimer.mode !== "simpleStopwatch") return;
+    const elapsed = getElapsedMs(selectedTimer.id) ?? 0;
+    setLogsMap((prev) => {
+      const existing = prev[selectedTimer.id] ?? [];
+      return { ...prev, [selectedTimer.id]: [...existing, elapsed] };
+    });
+    setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: true }));
+    start(selectedTimer);
+  };
+
   const handleEditTimer = (timer: Timer) => {
+    if (timer.locked) return;
     if (isRunning(timer.id)) {
       stop(timer.id);
     }
@@ -77,11 +237,19 @@ const App: React.FC = () => {
   };
 
   const handleSaveTimer = (draft: Timer) => {
-    updateTimer(draft);
-    setPendingNewTimerId((prev) => (prev === draft.id ? null : prev));
-    setEditorTimerId(null);
-    setTempEditorTimer(null);
-    setView("grid");
+    try {
+      const parsed = TimerSchema.parse(draft) as Timer;
+      updateTimer(parsed);
+      setPendingNewTimerId((prev) => (prev === draft.id ? null : prev));
+      setEditorTimerId(null);
+      setTempEditorTimer(null);
+      setView("grid");
+    } catch (err: any) {
+      const message =
+        err?.errors?.map((e: any) => e.message).join("; ") ||
+        "Please check your timer inputs.";
+      alert(`Validation failed: ${message}`);
+    }
   };
 
   const handleDeleteTimer = (timer: Timer) => {
@@ -93,6 +261,11 @@ const App: React.FC = () => {
     }
     deleteTimer(timer.id);
     setTimerPendingDelete(null);
+    setHasStartedMap((prev) => {
+      const next = { ...prev };
+      delete next[timer.id];
+      return next;
+    });
   };
 
   const handleBackFromEditor = () => {
@@ -136,6 +309,29 @@ const App: React.FC = () => {
     ];
 
     const updated = buildTimer(timer, "Quick Timer", "stopwatch", blocks);
+
+    updateTimer(updated);
+    setPendingNewTimerId(null);
+    setEditorTimerId(null);
+    setTempEditorTimer(null);
+    setSelectedTimerId(updated.id);
+    setShowTemplatePicker(false);
+    setSelectedTemplate("timer");
+    setView("grid");
+  };
+
+  const handleCreateStopwatch = () => {
+    const timer = createTimer();
+    if (!timer) return;
+
+    const updated: Timer = {
+      ...timer,
+      name: "Stopwatch",
+      mode: "simpleStopwatch",
+      blocks: [],
+      locked: false,
+      logs: []
+    };
 
     updateTimer(updated);
     setPendingNewTimerId(null);
@@ -230,6 +426,10 @@ const App: React.FC = () => {
       handleCreateQuickAlarm(true);
     } else if (selectedTemplate === "pomodoro") {
       handleCreatePomodoro();
+    } else if (selectedTemplate === "stopwatch") {
+      handleCreateStopwatch();
+    } else if (selectedTemplate === "import") {
+      handleImportCsv();
     } else if (selectedTemplate === "custom") {
       handleCreateCustomTimer();
     }
@@ -257,7 +457,15 @@ const App: React.FC = () => {
 
   return (
     <>
-      {view === "grid" && (
+      {!ready && (
+        <div className="app-shell animate-fade-in-up">
+          <div className="w-full max-w-4xl pastel-card pastel-hover p-6 text-center">
+            <p className="text-sm text-accent-400">Loading timers…</p>
+          </div>
+        </div>
+      )}
+
+      {ready && view === "grid" && (
         <div className="app-shell animate-fade-in-up">
           <div className="w-full max-w-4xl mb-4 text-center">
             <h1 className="text-2xl sm:text-3xl font-semibold text-accent-600 mb-1">
@@ -274,9 +482,13 @@ const App: React.FC = () => {
             activeBlockId={getActiveBlockId(selectedTimerId)}
             isRunning={isRunning(selectedTimerId)}
             remainingMs={selectedTimerId ? getRemainingMs(selectedTimerId) : null}
+            elapsedMs={selectedTimerId ? getElapsedMs(selectedTimerId) : null}
+            hasStarted={selectedTimerId ? !!hasStartedMap[selectedTimerId] : false}
             onClose={() => setSelectedTimerId(null)}
-            onPlay={() => selectedTimer && start(selectedTimer)}
-            onStop={() => selectedTimerId && stop(selectedTimerId)}
+            onPlay={handlePlaySelected}
+            onPause={handlePauseSelected}
+            onRestart={handleRestartSelected}
+            onLog={handleMarkSelected}
           />
 
           <TimerGrid
@@ -301,8 +513,16 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {view === "editor" && editorTimer && (
-        <TimerEditor timer={editorTimer} onBack={handleBackFromEditor} onSave={handleSaveTimer} />
+      {ready && view === "editor" && editorTimer && (
+        editorTimer.mode === "simpleStopwatch" ? (
+          <StopwatchEditor
+            timer={editorTimer}
+            onBack={handleBackFromEditor}
+            onSave={handleSaveTimer}
+          />
+        ) : (
+          <TimerEditor timer={editorTimer} onBack={handleBackFromEditor} onSave={handleSaveTimer} />
+        )
       )}
 
       <ThemeBar theme={theme} onChange={setTheme} />
@@ -356,21 +576,7 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 items-start">
-              <button
-                type="button"
-                className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
-                  selectedTemplate === "timer" ? "soft-glow" : ""
-                }`}
-                onClick={() => setSelectedTemplate("timer")}
-              >
-                <p className="text-sm font-semibold text-accent-600 mb-1 whitespace-nowrap">
-                  Quick Stopwatch
-                </p>
-                <p className="text-xs text-accent-400 min-h-[32px] leading-tight">
-                  Runs for a set time.
-                </p>
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 items-start">
               <button
                 type="button"
                 className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
@@ -385,6 +591,37 @@ const App: React.FC = () => {
                   Rings at a set time.
                 </p>
               </button>
+
+              <button
+                type="button"
+                className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
+                  selectedTemplate === "timer" ? "soft-glow" : ""
+                }`}
+                onClick={() => setSelectedTemplate("timer")}
+              >
+                <p className="text-sm font-semibold text-accent-600 mb-1 whitespace-nowrap">
+                  Quick Timer
+                </p>
+                <p className="text-xs text-accent-400 min-h-[32px] leading-tight">
+                  Runs for a set time.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
+                  selectedTemplate === "stopwatch" ? "soft-glow" : ""
+                }`}
+                onClick={() => setSelectedTemplate("stopwatch")}
+              >
+                <p className="text-sm font-semibold text-accent-600 mb-1 whitespace-nowrap">
+                  Stopwatch
+                </p>
+                <p className="text-xs text-accent-400 min-h-[32px] leading-tight">
+                  Counts up from zero.
+                </p>
+              </button>
+
               <button
                 type="button"
                 className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
@@ -399,6 +636,7 @@ const App: React.FC = () => {
                   Rings daily at a set time.
                 </p>
               </button>
+
               <button
                 type="button"
                 className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
@@ -413,6 +651,22 @@ const App: React.FC = () => {
                   Work/break cycles for focused sessions.
                 </p>
               </button>
+
+              <button
+                type="button"
+                className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
+                  selectedTemplate === "import" ? "soft-glow" : ""
+                }`}
+                onClick={() => setSelectedTemplate("import")}
+              >
+                <p className="text-sm font-semibold text-accent-600 mb-1 whitespace-nowrap">
+                  Import Alarms
+                </p>
+                <p className="text-xs text-accent-400 min-h-[32px] leading-tight">
+                  Upload a CSV with multiple alarms.
+                </p>
+              </button>
+
               <button
                 type="button"
                 className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${
@@ -424,7 +678,7 @@ const App: React.FC = () => {
                   Custom Timer
                 </p>
                 <p className="text-xs text-accent-400 min-h-[32px] leading-tight">
-                  Open the editor to build your own timer.
+                  Open the editor to build your own timer or import CSV.
                 </p>
               </button>
             </div>
@@ -474,10 +728,7 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {selectedTemplate &&
-                selectedTemplate !== "timer" &&
-                selectedTemplate !== "pomodoro" &&
-                selectedTemplate !== "custom" && (
+              {(selectedTemplate === "alarm" || selectedTemplate === "daily") && (
                 <div className="pastel-card p-3 flex-1 min-w-[260px]">
                   <p className="text-xs uppercase tracking-wide text-accent-300 mb-1">
                     Alarm time
@@ -530,6 +781,47 @@ const App: React.FC = () => {
                         <option value="PM">PM</option>
                       </select>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedTemplate === "import" && (
+                <div className="pastel-card p-3 flex-1 min-w-[260px]">
+                  <p className="text-xs uppercase tracking-wide text-accent-300 mb-1">
+                    Upload CSV
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <label
+                      className="soft-input text-center cursor-pointer"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (!file) return;
+                        file.text().then((t) => setImportCsvText(t));
+                      }}
+                    >
+                      <input
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          file.text().then((t) => setImportCsvText(t));
+                        }}
+                      />
+                      Drag or click to upload CSV
+                    </label>
+                    <textarea
+                      className="soft-input min-h-[120px]"
+                      value={importCsvText}
+                      onChange={(e) => setImportCsvText(e.target.value)}
+                      placeholder="name,time,ampm,repeat&#10;Morning Alarm,07:00,AM,daily"
+                    />
+                    <p className="text-[11px] text-accent-400">
+                      Headers: name,time,ampm,repeat. Repeat supports "daily" or "once".
+                    </p>
                   </div>
                 </div>
               )}
@@ -595,7 +887,9 @@ const App: React.FC = () => {
                   disabled={!selectedTemplate}
                   onClick={handleCreateSelectedTemplate}
                 >
-                  {selectedTemplate === "timer" && "Create Quick Stopwatch"}
+                  {selectedTemplate === "timer" && "Create Quick Timer"}
+                  {selectedTemplate === "stopwatch" && "Create Stopwatch"}
+                  {selectedTemplate === "import" && "Import Alarms"}
                   {selectedTemplate === "alarm" && "Create Quick Alarm"}
                   {selectedTemplate === "daily" && "Create Daily Alarm"}
                   {selectedTemplate === "pomodoro" && "Create Pomodoro Timer"}

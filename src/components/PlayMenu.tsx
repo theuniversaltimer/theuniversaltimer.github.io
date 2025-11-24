@@ -1,5 +1,8 @@
 import React from "react";
 import { Howl } from "howler";
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
+import { format as formatDate } from "date-fns";
 import type {
   Timer,
   Block,
@@ -27,18 +30,42 @@ const formatDuration = (seconds?: number): string | null => {
   return `${Math.round(total * 10) / 10}s`;
 };
 
+dayjs.extend(duration);
+
 const formatCountdown = (ms: number | null): string | null => {
   if (ms === null || Number.isNaN(ms)) return null;
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  const mmss = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  if (h > 0) {
-    return `${h.toString().padStart(2, "0")}:${mmss}`;
+  const d = dayjs.duration(Math.max(0, ms));
+  const hours = Math.floor(d.asHours());
+  const minutes = d.minutes();
+  const seconds = d.seconds();
+  const mmss = `${minutes.toString().padStart(2, "0")}:${seconds
+    .toString()
+    .padStart(2, "0")}`;
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, "0")}:${mmss}`;
   }
   return mmss;
 };
+
+const formatElapsed = (ms?: number | null): string => {
+  if (ms === undefined || ms === null || Number.isNaN(ms)) return "00:00.00";
+  const d = dayjs.duration(ms);
+  const hours = Math.floor(d.asHours());
+  const minutes = d.minutes();
+  const seconds = d.seconds();
+  const centiseconds = Math.floor(d.milliseconds() / 10);
+
+  const base = `${minutes.toString().padStart(2, "0")}:${seconds
+    .toString()
+    .padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
+
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, "0")}:${base}`;
+  }
+  return base;
+};
+
+const formatLogTimestamp = (ms: number): string => formatDate(ms, "MM/dd/yy hh:mm:ss a");
 
 const getSoundUrl = (block: PlaySoundBlock | PlaySoundUntilBlock): string => {
   const defaultUrl = "/sounds/alarm.mp3";
@@ -65,10 +92,15 @@ interface Props {
   isVisible: boolean;
   onClose: () => void;
   onPlay: () => void;
-  onStop: () => void;
+  onPause: () => void;
+  onRestart: () => void;
+  onLog?: () => void;
   isRunning: boolean;
   activeBlockId: string | null;
   remainingMs: number | null;
+  elapsedMs?: number | null;
+  hasStarted?: boolean;
+  logs?: { elapsedMs: number; loggedAt: number }[];
 }
 
 const describeBlock = (block: Block): string => {
@@ -124,7 +156,7 @@ const BlockTree: React.FC<{
               <span>{describeBlock(block)}</span>
               <div className="flex items-center gap-2">
                 {countdown && (
-                  <span className="text-accent-500 font-mono text-[11px]">
+                  <span className="text-accent-500 text-[11px]">
                     {countdown}
                   </span>
                 )}
@@ -166,10 +198,15 @@ const PlayMenu: React.FC<Props> = ({
   isVisible,
   onClose,
   onPlay,
-  onStop,
+  onPause,
+  onRestart,
+  onLog,
   isRunning,
   activeBlockId,
-  remainingMs
+  remainingMs,
+  elapsedMs,
+  hasStarted = false,
+  logs = []
 }) => {
   const [collapsedMap, setCollapsedMap] = React.useState<Record<string, boolean>>({});
   const [showSteps, setShowSteps] = React.useState(false);
@@ -215,6 +252,11 @@ const PlayMenu: React.FC<Props> = ({
     };
   }, [timer.blocks]);
 
+  React.useEffect(() => {
+    setShowSteps(false);
+    setCollapsedMap({});
+  }, [timer.id]);
+
   const handleToggleLoop = (id: string) => {
     setCollapsedMap((prev) => ({
       ...prev,
@@ -222,87 +264,173 @@ const PlayMenu: React.FC<Props> = ({
     }));
   };
 
+  const isStopwatch = timer.mode === "simpleStopwatch";
+  const supportsBlocks = !isStopwatch;
   const hasSelection = isVisible;
-  const hasBlocks = timer.blocks.length > 0;
+  const hasBlocks = supportsBlocks ? timer.blocks.length > 0 : false;
+  const canPlay = isStopwatch || hasBlocks;
+  const canRestart = isStopwatch || hasBlocks;
+  const initialPlayLabel = isStopwatch ? "Start" : "Play";
+  const primaryActionLabel = isRunning
+    ? "Pause"
+    : hasStarted || (isStopwatch && elapsedMs && elapsedMs > 0)
+    ? "Resume"
+    : initialPlayLabel;
+  const primaryActionHandler = isRunning ? onPause : onPlay;
+  const primaryActionDisabled = isRunning ? false : !canPlay;
+  const logEntries = (timer.logs as any)?.length ? (timer as any).logs : logs;
+  const primaryTimeValue = isStopwatch
+    ? formatElapsed(elapsedMs ?? 0)
+    : formatCountdown(remainingMs ?? 0) ?? "--:--";
 
   if (!isVisible) return null;
 
   return (
     <div className="w-full max-w-4xl mb-4 animate-slide-down-soft">
-      <div className="pastel-card pastel-hover p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
+      <div className="play-panel">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wide text-accent-300">
-              Play Menu
-            </span>
-            <span className="text-base font-semibold text-accent-600">
+            <span className="panel-label">Play Menu</span>
+            <span className="panel-title">
               {hasSelection ? timer.name || "Selected Timer" : "No timer selected"}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            {isRunning ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="soft-button-ghost text-xs px-3 py-1"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="digital-bar">
+          <span className="digital-time">{primaryTimeValue}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 justify-center">
+          <button
+            type="button"
+            onClick={primaryActionHandler}
+            className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 min-w-[110px]"
+            disabled={primaryActionDisabled}
+          >
+            {primaryActionLabel}
+          </button>
+          {isStopwatch ? (
+            <>
               <button
                 type="button"
-                onClick={onStop}
-                className="soft-button bg-accent-200 text-accent-700 hover:bg-accent-300"
+                onClick={onLog}
+                className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 min-w-[110px]"
+                disabled={!onLog}
               >
-                Pause
+                Mark
               </button>
-            ) : (
               <button
                 type="button"
-                onClick={onPlay}
-                className="soft-button-primary"
-                disabled={!hasBlocks}
+                onClick={onRestart}
+                className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 min-w-[110px]"
               >
-                Play
+                Restart
               </button>
-            )}
+            </>
+          ) : (
             <button
               type="button"
-              onClick={onClose}
-              className="soft-button-ghost text-xs px-3 py-1"
+              onClick={onRestart}
+              className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 min-w-[110px]"
+              disabled={!canRestart}
             >
-              Close
+              Restart
             </button>
-          </div>
+          )}
         </div>
         <div className="mt-1 pr-1">
           {hasSelection ? (
-            <>
-              <div className="flex items-center justify-between mb-2">
+            isStopwatch ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  {showSteps ? (
+                    <span className="text-xs text-accent-400">Logs</span>
+                  ) : (
+                    <span className="text-xs text-accent-400">
+                      Logs are hidden. Click Show to view them.
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowSteps((prev) => !prev)}
+                    className="text-[11px] uppercase tracking-wide text-accent-500 hover:text-accent-600"
+                  >
+                    {showSteps ? "Hide logs" : "Show logs"}
+                  </button>
+                </div>
                 {showSteps ? (
-                  <span className="text-xs text-accent-400">Blocks</span>
-                ) : (
-                  <span className="text-xs text-accent-400">
-                    Blocks are hidden. Click Show to view the sequence.
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowSteps((prev) => !prev)}
-                  className="text-[11px] uppercase tracking-wide text-accent-500 hover:text-accent-600"
-                >
-                  {showSteps ? "Hide blocks" : "Show blocks"}
-                </button>
-              </div>
-              {showSteps ? (
-                hasBlocks ? (
-                  <BlockTree
-                    blocks={timer.blocks}
-                    activeBlockId={activeBlockId}
-                    collapsedMap={collapsedMap}
-                    onToggleLoop={handleToggleLoop}
-                    durationsMap={soundDurations}
-                    remainingMs={remainingMs}
-                  />
-                ) : (
-                  <p className="text-xs text-accent-400">
-                    This timer has no blocks yet. Edit it to add blocks.
-                  </p>
-                )
-              ) : null}
-            </>
+                  logEntries.length ? (
+                    <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+                      {[...logEntries]
+                        .slice()
+                        .reverse()
+                        .map((entry) => (
+                          <div
+                            key={`${entry.loggedAt}-${entry.elapsedMs}`}
+                            className="pastel-card flex items-center justify-between rounded-xl px-3 py-2 text-xs text-accent-500"
+                          >
+                            <span className="text-[11px] tracking-wide text-accent-300">
+                              {entry.name?.trim()
+                                ? entry.name
+                                : formatLogTimestamp(entry.loggedAt)}
+                            </span>
+                            <span className="font-mono text-sm text-accent-600">
+                              {formatElapsed(entry.elapsedMs)}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-accent-400">
+                      No logs yet. Press Mark to log elapsed time.
+                    </p>
+                  )
+                ) : null}
+              </>
+            ) : supportsBlocks ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  {showSteps ? (
+                    <span className="text-xs text-accent-400">Blocks</span>
+                  ) : (
+                    <span className="text-xs text-accent-400">
+                      Blocks are hidden. Click Show to view the sequence.
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowSteps((prev) => !prev)}
+                    className="text-[11px] uppercase tracking-wide text-accent-500 hover:text-accent-600"
+                  >
+                    {showSteps ? "Hide blocks" : "Show blocks"}
+                  </button>
+                </div>
+                {showSteps ? (
+                  hasBlocks ? (
+                    <BlockTree
+                      blocks={timer.blocks}
+                      activeBlockId={activeBlockId}
+                      collapsedMap={collapsedMap}
+                      onToggleLoop={handleToggleLoop}
+                      durationsMap={soundDurations}
+                      remainingMs={remainingMs}
+                    />
+                  ) : (
+                    <p className="text-xs text-accent-400">
+                      No blocks yet. Edit it to add blocks.
+                    </p>
+                  )
+                ) : null}
+              </>
+            ) : null
           ) : (
             <p className="text-xs text-accent-400">No timer selected. Choose a timer to play.</p>
           )}

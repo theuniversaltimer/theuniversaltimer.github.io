@@ -99,6 +99,18 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     setOverlayWidth(undefined);
   };
 
+  const handleExport = () => {
+    const filename = `${(draft.name || "timer").replace(/[^a-z0-9]/gi, "-") || "timer"}.json`;
+    const data = JSON.stringify(draft, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as DragMeta | undefined;
     if (!data) return;
@@ -500,7 +512,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="w-full max-w-6xl flex flex-col pastel-card pastel-hover p-5 pt-4 pb-4">
+      <div className="w-full max-w-4xl flex flex-col pastel-card pastel-hover p-6">
           <div className="flex items-center justify-between mb-4 gap-3">
             <button onClick={handleBackClick} className="soft-button-primary px-3 shrink-0">
               ← Back
@@ -548,6 +560,15 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
                   }
                 }}
               />
+              <button
+                type="button"
+                onClick={handleExport}
+                className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-2 shrink-0"
+                aria-label="Export timer"
+                title="Export timer"
+              >
+                ⬇ Export
+              </button>
             </div>
             <button
               onClick={() => onSave(draft)}

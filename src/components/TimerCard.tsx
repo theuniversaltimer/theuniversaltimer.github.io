@@ -27,6 +27,24 @@ const TimerCard: React.FC<Props> = ({
     }, 0);
 
   const blockCount = countBlocks(timer.blocks);
+  const isLocked = !!timer.locked;
+  const modeLabel =
+    timer.mode === "alarm"
+      ? "Alarm"
+      : timer.mode === "stopwatch" || timer.mode === "simpleStopwatch"
+      ? "Stopwatch"
+      : "Timer";
+  const summaryText =
+    timer.mode === "simpleStopwatch"
+      ? (() => {
+          const logCount = timer.logs?.length ?? 0;
+          return logCount === 0
+            ? "No logs yet"
+            : `${logCount} log${logCount === 1 ? "" : "s"}`;
+        })()
+      : blockCount
+      ? `${blockCount} block${blockCount === 1 ? "" : "s"}`
+      : "No blocks yet";
 
   const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -48,7 +66,7 @@ const TimerCard: React.FC<Props> = ({
       <div className="flex w-full items-center justify-between gap-2">
         <div className="flex flex-col">
           <span className="text-xs uppercase tracking-wide text-accent-300">
-            {timer.mode === "stopwatch" ? "Stopwatch" : "Timer"}
+            {modeLabel}
           </span>
           <span className="text-base font-semibold text-accent-600">
             {timer.name || "Untitled Timer"}
@@ -61,22 +79,20 @@ const TimerCard: React.FC<Props> = ({
         )}
       </div>
       <div className="flex w-full items-center justify-between gap-2">
-        <p className="text-xs text-accent-400">
-          {blockCount
-            ? `${blockCount} block${blockCount === 1 ? "" : "s"}`
-            : "No blocks yet"}
-        </p>
+        <p className="text-xs text-accent-400">{summaryText}</p>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-1"
-          >
-            Edit
-          </button>
+          {!isLocked && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-1"
+            >
+              Edit
+            </button>
+          )}
           <button
             type="button"
             onClick={(e) => {

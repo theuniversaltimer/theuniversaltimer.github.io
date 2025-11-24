@@ -1,4 +1,5 @@
 import type { AmPm, TimeUnit } from "../types";
+import { parse, isValid, addDays, isBefore, set, format as formatDate } from "date-fns";
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -32,11 +33,10 @@ export function msUntilTime(time: string, ampm: AmPm): number {
   }
 
   const now = new Date();
-  const target = new Date();
-  target.setHours(hour, minute, 0, 0);
+  let target = set(now, { hours: hour, minutes: minute, seconds: 0, milliseconds: 0 });
 
-  if (target <= now) {
-    target.setDate(target.getDate() + 1);
+  if (isBefore(target, now) || target.getTime() === now.getTime()) {
+    target = addDays(target, 1);
   }
 
   return target.getTime() - now.getTime();
@@ -44,14 +44,22 @@ export function msUntilTime(time: string, ampm: AmPm): number {
 
 export function sanitizeTimeInput(value: string, fallback: string): string {
   const trimmed = value.trim();
-  const match = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
-  if (!match) return fallback;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return fallback;
-  if (hours < 1 || hours > 12) return fallback;
-  if (minutes < 0 || minutes > 59) return fallback;
-  const hh = hours.toString();
+  const parsed = parse(trimmed, "H:mm", new Date());
+  if (!isValid(parsed)) return fallback;
+
+  const hours24 = parsed.getHours();
+  const minutes = parsed.getMinutes();
+
+  // Clamp to 12-hour input expectations (1-12)
+  const hours12 = ((hours24 + 11) % 12) + 1;
+
+  const hh = hours12.toString();
   const mm = minutes.toString().padStart(2, "0");
-  return `${hh}:${mm}`;
+  const normalized = `${hh}:${mm}`;
+
+  // Ensure round-trip matches original hours/minutes intent
+  const reParsed = parse(normalized, "H:mm", new Date());
+  if (!isValid(reParsed)) return fallback;
+
+  return normalized;
 }

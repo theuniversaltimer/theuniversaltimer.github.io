@@ -27,8 +27,16 @@ interface RunnerState {
   remainingMs: number | null;
 }
 
+interface StopwatchState {
+  elapsedMs: number;
+  isRunning: boolean;
+  startedAt: number | null;
+}
+
 export function useMultiTimerRunner() {
   const [runningMap, setRunningMap] = useState<Record<string, RunnerState>>({});
+  const [stopwatchMap, setStopwatchMap] = useState<Record<string, StopwatchState>>({});
+  const [stopwatchTick, setStopwatchTick] = useState(0);
   const abortRefs = useRef<Record<string, { abort: boolean }>>({});
   const [activeSrc, setActiveSrc] = useState("/sounds/alarm.mp3");
   const resolveRef = useRef<(() => void) | null>(null);
@@ -68,11 +76,18 @@ export function useMultiTimerRunner() {
     };
   }, [activeSound, playInternal]);
 
+  useEffect(() => {
+    const hasRunningStopwatch = Object.values(stopwatchMap).some((s) => s.isRunning);
+    if (!hasRunningStopwatch) return;
+    const id = window.setInterval(() => setStopwatchTick((t) => t + 1), 20);
+    return () => clearInterval(id);
+  }, [stopwatchMap]);
+
   const playSoundOnce = useCallback(
     (url: string) =>
       new Promise<void>((resolve) => {
         const targetUrl = url || "/sounds/alarm.mp3";
-        
+
         if (targetUrl === activeSrc && activeSound) {
           // Same sound, play immediately
           resolveRef.current = resolve;
@@ -104,27 +119,89 @@ export function useMultiTimerRunner() {
     }
   }, [stopInternal]);
 
-  const stop = useCallback((timerId: string) => {
-    const ref = abortRefs.current[timerId];
-    if (ref) {
-      ref.abort = true;
-      stopAudio();
+  const getStopwatchElapsed = (state?: StopwatchState): number => {
+    if (!state) return 0;
+    if (state.isRunning && state.startedAt) {
+      return state.elapsedMs + (Date.now() - state.startedAt);
     }
-    setRunningMap((prev) => ({
+    return state.elapsedMs;
+  };
+
+  const startStopwatch = useCallback(
+    (timer: Timer, options?: { reset?: boolean }) => {
+      setStopwatchMap((prev) => {
+        const current = prev[timer.id];
+        const baseElapsed = options?.reset ? 0 : getStopwatchElapsed(current);
+        return {
+          ...prev,
+          [timer.id]: {
+            elapsedMs: baseElapsed,
+            isRunning: true,
+            startedAt: Date.now()
+          }
+        };
+      });
+    },
+    []
+  );
+
+  const pauseStopwatch = useCallback((timerId: string) => {
+    setStopwatchMap((prev) => {
+      const current = prev[timerId];
+      const elapsed = getStopwatchElapsed(current);
+      return {
+        ...prev,
+        [timerId]: {
+          elapsedMs: elapsed,
+          isRunning: false,
+          startedAt: null
+        }
+      };
+    });
+  }, []);
+
+  const resetStopwatch = useCallback((timerId: string) => {
+    setStopwatchMap((prev) => ({
       ...prev,
-      [timerId]: { isRunning: false, activeBlockId: null, remainingMs: null }
+      [timerId]: { elapsedMs: 0, isRunning: false, startedAt: null }
     }));
-  }, [stopAudio]);
+  }, []);
 
-  const stopAll = useCallback(() => {
-    Object.keys(abortRefs.current).forEach(stop);
-  }, [stop]);
+  const stopAllStopwatches = useCallback(() => {
+    setStopwatchMap((prev) => {
+      const next: Record<string, StopwatchState> = {};
+      Object.keys(prev).forEach((id) => {
+        const elapsed = getStopwatchElapsed(prev[id]);
+        next[id] = { elapsedMs: elapsed, isRunning: false, startedAt: null };
+      });
+      return next;
+    });
+  }, []);
 
-  const start = useCallback(
+  const stopBlocks = useCallback(
+    (timerId: string) => {
+      const ref = abortRefs.current[timerId];
+      if (ref) {
+        ref.abort = true;
+        stopAudio();
+      }
+      setRunningMap((prev) => ({
+        ...prev,
+        [timerId]: { isRunning: false, activeBlockId: null, remainingMs: null }
+      }));
+    },
+    [stopAudio]
+  );
+
+  const stopAllBlocks = useCallback(() => {
+    Object.keys(abortRefs.current).forEach(stopBlocks);
+  }, [stopBlocks]);
+
+  const startBlocks = useCallback(
     async (timer: Timer) => {
       if (!timer.blocks.length) return;
 
-      stop(timer.id);
+      stopBlocks(timer.id);
 
       abortRefs.current[timer.id] = { abort: false };
       setRunningMap((prev) => ({
@@ -135,7 +212,11 @@ export function useMultiTimerRunner() {
       const updateState = (activeBlockId: string | null, remainingMs: number | null = null) => {
         setRunningMap((prev) => ({
           ...prev,
-          [timer.id]: { isRunning: !(abortRefs.current[timer.id]?.abort ?? false), activeBlockId, remainingMs }
+          [timer.id]: {
+            isRunning: !(abortRefs.current[timer.id]?.abort ?? false),
+            activeBlockId,
+            remainingMs
+          }
         }));
       };
 
@@ -178,13 +259,62 @@ export function useMultiTimerRunner() {
         }));
       }
     },
-    [stop, playSoundOnce, stopAudio]
+    [stopBlocks, playSoundOnce, stopAudio]
   );
+
+  const start = useCallback(
+    async (timer: Timer, options?: { reset?: boolean }) => {
+      if (timer.mode === "simpleStopwatch") {
+        startStopwatch(timer, options);
+        return;
+      }
+      await startBlocks(timer);
+    },
+    [startStopwatch, startBlocks]
+  );
+
+  const pause = useCallback(
+    (timer: Timer) => {
+      if (timer.mode === "simpleStopwatch") {
+        pauseStopwatch(timer.id);
+        return;
+      }
+      stopBlocks(timer.id);
+    },
+    [pauseStopwatch, stopBlocks]
+  );
+
+  const restart = useCallback(
+    async (timer: Timer) => {
+      if (timer.mode === "simpleStopwatch") {
+        startStopwatch(timer, { reset: true });
+        return;
+      }
+      await startBlocks(timer);
+    },
+    [startStopwatch, startBlocks]
+  );
+
+  const stop = useCallback(
+    (timerId: string) => {
+      pauseStopwatch(timerId);
+      stopBlocks(timerId);
+    },
+    [pauseStopwatch, stopBlocks]
+  );
+
+  const stopAll = useCallback(() => {
+    stopAllBlocks();
+    stopAllStopwatches();
+  }, [stopAllBlocks, stopAllStopwatches]);
 
   const isRunning = useCallback(
     (timerId: string | null | undefined) =>
-      timerId ? runningMap[timerId]?.isRunning ?? false : false,
-    [runningMap]
+      timerId
+        ? (runningMap[timerId]?.isRunning ?? false) ||
+          (stopwatchMap[timerId]?.isRunning ?? false)
+        : false,
+    [runningMap, stopwatchMap, stopwatchTick]
   );
 
   const getActiveBlockId = useCallback(
@@ -199,12 +329,24 @@ export function useMultiTimerRunner() {
     [runningMap]
   );
 
+  const getElapsedMs = useCallback(
+    (timerId: string | null | undefined) => {
+      if (!timerId) return 0;
+      return getStopwatchElapsed(stopwatchMap[timerId]);
+    },
+    [stopwatchMap, stopwatchTick]
+  );
+
   return {
     isRunning,
     getActiveBlockId,
     getRemainingMs,
+    getElapsedMs,
     start,
+    pause,
+    restart,
     stop,
-    stopAll
+    stopAll,
+    resetStopwatch
   };
 }
