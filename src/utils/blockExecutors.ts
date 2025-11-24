@@ -12,6 +12,8 @@ import { msUntilTime, sleep, unitToMs } from "./time";
 
 export interface RunnerContext {
   abort: () => boolean;
+  isPaused: () => boolean;
+  waitWhilePaused: () => Promise<void>;
   updateState: (activeBlockId: string | null, remainingMs?: number | null) => void;
   playSoundOnce: (url: string) => Promise<void>;
   stopAudio: () => void;
@@ -44,15 +46,26 @@ export async function runWait(
   block: WaitBlock,
   ctx: RunnerContext
 ): Promise<void> {
-  const ms = unitToMs(Math.max(0, block.amount || 0), block.unit);
-  if (ms <= 0) return;
+  let remaining = unitToMs(Math.max(0, block.amount || 0), block.unit);
+  if (remaining <= 0) return;
 
-  const endAt = Date.now() + ms;
+  let last = Date.now();
   while (!ctx.abort()) {
-    const remaining = endAt - Date.now();
+    if (ctx.isPaused()) {
+      await ctx.waitWhilePaused();
+      last = Date.now();
+      continue;
+    }
+
+    const now = Date.now();
+    remaining -= now - last;
+    last = now;
+
     if (remaining <= 0) break;
+
     ctx.updateState(block.id, remaining);
-    await sleep(Math.min(250, remaining));
+    const sleepFor = Math.min(250, remaining);
+    await sleep(sleepFor);
   }
   ctx.updateState(block.id, null);
 }
@@ -61,15 +74,26 @@ export async function runWaitUntil(
   block: WaitUntilBlock,
   ctx: RunnerContext
 ): Promise<void> {
-  const ms = msUntilTime(block.time || "07:00", block.ampm);
-  if (ms <= 0) return;
+  let remaining = msUntilTime(block.time || "07:00", block.ampm);
+  if (remaining <= 0) return;
 
-  const endAt = Date.now() + ms;
+  let last = Date.now();
   while (!ctx.abort()) {
-    const remaining = endAt - Date.now();
+    if (ctx.isPaused()) {
+      await ctx.waitWhilePaused();
+      last = Date.now();
+      continue;
+    }
+
+    const now = Date.now();
+    remaining -= now - last;
+    last = now;
+
     if (remaining <= 0) break;
+
     ctx.updateState(block.id, remaining);
-    await sleep(Math.min(250, remaining));
+    const sleepFor = Math.min(250, remaining);
+    await sleep(sleepFor);
   }
   ctx.updateState(block.id, null);
 }
@@ -78,17 +102,32 @@ export async function runPlaySound(
   block: PlaySoundBlock | PlaySoundUntilBlock,
   ctx: RunnerContext
 ): Promise<void> {
+  if (ctx.isPaused()) {
+    await ctx.waitWhilePaused();
+    if (ctx.abort()) return;
+  }
+
   const type = block.soundType === "custom" ? "url" : block.soundType ?? "default";
   const defaultUrl = "/sounds/alarm.mp3";
   const url = type === "default" ? defaultUrl : block.customUrl || defaultUrl;
   
   await ctx.playSoundOnce(url);
+  if (ctx.abort()) return;
+
+  if (ctx.isPaused()) {
+    await ctx.waitWhilePaused();
+  }
 }
 
 export async function runNotify(
   block: NotifyBlock,
   ctx: RunnerContext
 ): Promise<void> {
+  if (ctx.isPaused()) {
+    await ctx.waitWhilePaused();
+    if (ctx.abort()) return;
+  }
+
   const permission = await requestNotificationPermission();
   
   if (permission === "granted") {
@@ -102,8 +141,7 @@ export async function runNotifyUntil(
   block: NotifyUntilBlock,
   ctx: RunnerContext
 ): Promise<void> {
-  let done = false;
-  const timeoutMs = block.timeoutMs ?? 10000;
+  let remainingTimeout = block.timeoutMs ?? 10000;
   const intervalMs = Math.max(100, Math.round((block.interval ?? 0.5) * 1000));
   const soundBlock: PlaySoundUntilBlock = {
     id: `${block.id}-sound`,
@@ -113,44 +151,65 @@ export async function runNotifyUntil(
     label: block.label || block.title || "Beep"
   };
 
-  const waitPromise = new Promise<void>((resolve) => {
-    let timerId: number | undefined;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      if (timerId) clearTimeout(timerId);
-      ctx.stopAudio();
-      resolve();
-    };
+  let last = Date.now();
+
+  const maybeSendNotification = async () => {
+    const permission = await requestNotificationPermission();
     
-    timerId = window.setTimeout(finish, timeoutMs);
-
-    requestNotificationPermission().then((permission) => {
-      if (permission === "granted") {
-        const title = (block.title || "Timer").slice(0, 100);
-        const body = block.body?.slice(0, 200);
-        try {
-          const notify = new Notification(title || "Timer", body ? { body } : undefined);
-          notify.onclick = finish;
-          notify.onclose = finish;
-        } catch {}
-      }
-    });
-  });
-
-  (async () => {
-    while (!done && !ctx.abort()) {
-      // Wait for the sound to finish playing completely
-      await runPlaySound(soundBlock, ctx);
-
-      if (done || ctx.abort()) break;
-
-      // Only start counting the interval pause after the sound is done
-      await sleep(intervalMs);
+    if (permission === "granted") {
+      const title = (block.title || "Timer").slice(0, 100);
+      const body = block.body?.slice(0, 200);
+      try {
+        const notify = new Notification(title || "Timer", body ? { body } : undefined);
+        notify.onclick = () => ctx.stopAudio();
+        notify.onclose = () => ctx.stopAudio();
+      } catch {}
     }
-  })();
+  };
 
-  await waitPromise;
+  ctx.updateState(block.id, remainingTimeout);
+  await maybeSendNotification();
+
+  while (!ctx.abort() && remainingTimeout > 0) {
+    if (ctx.isPaused()) {
+      await ctx.waitWhilePaused();
+      last = Date.now();
+      continue;
+    }
+
+    await runPlaySound(soundBlock, ctx);
+    if (ctx.abort()) break;
+
+    const afterSound = Date.now();
+    remainingTimeout -= afterSound - last;
+    last = afterSound;
+    if (remainingTimeout <= 0) break;
+
+    ctx.updateState(block.id, Math.max(0, remainingTimeout));
+
+    let intervalRemaining = intervalMs;
+    while (!ctx.abort() && remainingTimeout > 0 && intervalRemaining > 0) {
+      if (ctx.isPaused()) {
+        await ctx.waitWhilePaused();
+        last = Date.now();
+        continue;
+      }
+
+      const sleepFor = Math.min(250, intervalRemaining, remainingTimeout);
+      await sleep(sleepFor);
+
+      const now = Date.now();
+      const delta = now - last;
+      remainingTimeout -= delta;
+      intervalRemaining -= delta;
+      last = now;
+
+      ctx.updateState(block.id, Math.max(0, remainingTimeout));
+    }
+  }
+
+  ctx.updateState(block.id, null);
+  ctx.stopAudio();
 }
 
 export async function runLoop(

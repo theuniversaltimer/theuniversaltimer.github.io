@@ -37,7 +37,9 @@ export function useMultiTimerRunner() {
   const [runningMap, setRunningMap] = useState<Record<string, RunnerState>>({});
   const [stopwatchMap, setStopwatchMap] = useState<Record<string, StopwatchState>>({});
   const [stopwatchTick, setStopwatchTick] = useState(0);
-  const abortRefs = useRef<Record<string, { abort: boolean }>>({});
+  const controlRefs = useRef<
+    Record<string, { abort: boolean; paused: boolean; resumeResolvers: Array<() => void> }>
+  >({});
   const [activeSrc, setActiveSrc] = useState("/sounds/alarm.mp3");
   const resolveRef = useRef<(() => void) | null>(null);
   const [playInternal, { sound: activeSound, stop: stopInternal }] = useSound(activeSrc, {
@@ -178,24 +180,76 @@ export function useMultiTimerRunner() {
     });
   }, []);
 
+  const getControl = useCallback((timerId: string) => {
+    if (!controlRefs.current[timerId]) {
+      controlRefs.current[timerId] = { abort: false, paused: false, resumeResolvers: [] };
+    }
+    return controlRefs.current[timerId];
+  }, []);
+
+  const settlePauseWaiters = useCallback((timerId: string) => {
+    const control = controlRefs.current[timerId];
+    if (!control) return;
+    control.resumeResolvers.forEach((resolve) => resolve());
+    control.resumeResolvers = [];
+  }, []);
+
   const stopBlocks = useCallback(
     (timerId: string) => {
-      const ref = abortRefs.current[timerId];
-      if (ref) {
-        ref.abort = true;
-        stopAudio();
+      const control = controlRefs.current[timerId];
+      if (control) {
+        control.abort = true;
+        control.paused = false;
+        settlePauseWaiters(timerId);
       }
+      stopAudio();
       setRunningMap((prev) => ({
         ...prev,
         [timerId]: { isRunning: false, activeBlockId: null, remainingMs: null }
       }));
     },
-    [stopAudio]
+    [settlePauseWaiters, stopAudio]
   );
 
   const stopAllBlocks = useCallback(() => {
-    Object.keys(abortRefs.current).forEach(stopBlocks);
+    Object.keys(controlRefs.current).forEach(stopBlocks);
   }, [stopBlocks]);
+
+  const pauseBlocks = useCallback(
+    (timerId: string) => {
+      const control = controlRefs.current[timerId];
+      if (!control || control.abort) return;
+      control.paused = true;
+      stopAudio();
+      setRunningMap((prev) => {
+        const current = prev[timerId];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [timerId]: { ...current, isRunning: false }
+        };
+      });
+    },
+    [stopAudio]
+  );
+
+  const resumeBlocks = useCallback(
+    (timerId: string) => {
+      const control = controlRefs.current[timerId];
+      if (!control || control.abort || !control.paused) return;
+      control.paused = false;
+      settlePauseWaiters(timerId);
+      setRunningMap((prev) => {
+        const current = prev[timerId];
+        if (!current) return prev;
+        return {
+          ...prev,
+          [timerId]: { ...current, isRunning: true }
+        };
+      });
+    },
+    [settlePauseWaiters]
+  );
 
   const startBlocks = useCallback(
     async (timer: Timer) => {
@@ -203,17 +257,29 @@ export function useMultiTimerRunner() {
 
       stopBlocks(timer.id);
 
-      abortRefs.current[timer.id] = { abort: false };
+      const control = getControl(timer.id);
+      control.abort = false;
+      control.paused = false;
+      settlePauseWaiters(timer.id);
       setRunningMap((prev) => ({
         ...prev,
         [timer.id]: { isRunning: true, activeBlockId: null, remainingMs: null }
       }));
 
+      const waitWhilePaused = async () => {
+        const current = getControl(timer.id);
+        if (!current.paused) return;
+        await new Promise<void>((resolve) => {
+          current.resumeResolvers.push(resolve);
+        });
+      };
+
       const updateState = (activeBlockId: string | null, remainingMs: number | null = null) => {
+        const current = getControl(timer.id);
         setRunningMap((prev) => ({
           ...prev,
           [timer.id]: {
-            isRunning: !(abortRefs.current[timer.id]?.abort ?? false),
+            isRunning: !(current.abort ?? false) && !current.paused,
             activeBlockId,
             remainingMs
           }
@@ -221,7 +287,9 @@ export function useMultiTimerRunner() {
       };
 
       const ctx: RunnerContext = {
-        abort: () => abortRefs.current[timer.id]?.abort ?? false,
+        abort: () => getControl(timer.id).abort ?? false,
+        isPaused: () => getControl(timer.id).paused ?? false,
+        waitWhilePaused,
         updateState,
         playSoundOnce,
         stopAudio
@@ -230,6 +298,10 @@ export function useMultiTimerRunner() {
       const runBlocks = async (blocks: Block[]): Promise<void> => {
         for (const block of blocks) {
           if (ctx.abort()) return;
+          if (ctx.isPaused()) {
+            await ctx.waitWhilePaused();
+            if (ctx.abort()) return;
+          }
 
           updateState(block.id);
 
@@ -259,7 +331,7 @@ export function useMultiTimerRunner() {
         }));
       }
     },
-    [stopBlocks, playSoundOnce, stopAudio]
+    [getControl, settlePauseWaiters, stopBlocks, playSoundOnce, stopAudio]
   );
 
   const start = useCallback(
@@ -268,9 +340,14 @@ export function useMultiTimerRunner() {
         startStopwatch(timer, options);
         return;
       }
+      const control = controlRefs.current[timer.id];
+      if (control?.paused && !control.abort) {
+        resumeBlocks(timer.id);
+        return;
+      }
       await startBlocks(timer);
     },
-    [startStopwatch, startBlocks]
+    [startStopwatch, startBlocks, resumeBlocks]
   );
 
   const pause = useCallback(
@@ -279,9 +356,9 @@ export function useMultiTimerRunner() {
         pauseStopwatch(timer.id);
         return;
       }
-      stopBlocks(timer.id);
+      pauseBlocks(timer.id);
     },
-    [pauseStopwatch, stopBlocks]
+    [pauseStopwatch, pauseBlocks]
   );
 
   const restart = useCallback(

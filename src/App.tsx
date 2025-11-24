@@ -103,8 +103,9 @@ const App: React.FC = () => {
       stop(selectedTimer.id);
       setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: false }));
     } else {
-      setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: true }));
-      restart(selectedTimer);
+      // For timers, just stop and reset to initial state
+      stop(selectedTimer.id);
+      setHasStartedMap((prev) => ({ ...prev, [selectedTimer.id]: false }));
     }
   };
 
@@ -576,7 +577,7 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 items-start">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 items-start">
               <button
                 type="button"
                 className={`pastel-card pastel-hover text-left p-4 h-full items-start min-w-[140px] ${

@@ -14,8 +14,25 @@ import type {
   NotifyBlock,
   NotifyUntilBlock
 } from "../types";
-import { unitToMs } from "../utils/time";
+import { unitToMs, msUntilTime } from "../utils/time";
 import { getBlockConfig } from "../utils/blockConfig";
+
+const getInitialRemainingMs = (blocks: Block[]): number | null => {
+  if (blocks.length === 0) return null;
+  const firstBlock = blocks[0];
+  
+  if (firstBlock.type === "wait") {
+    const wait = firstBlock as WaitBlock;
+    return unitToMs(wait.amount || 0, wait.unit);
+  }
+  
+  if (firstBlock.type === "waitUntil") {
+    const waitUntil = firstBlock as WaitUntilBlock;
+    return msUntilTime(waitUntil.time || "07:00", waitUntil.ampm);
+  }
+  
+  return null;
+};
 
 const formatDuration = (seconds?: number): string | null => {
   if (seconds === undefined || Number.isNaN(seconds)) return null;
@@ -279,9 +296,14 @@ const PlayMenu: React.FC<Props> = ({
   const primaryActionHandler = isRunning ? onPause : onPlay;
   const primaryActionDisabled = isRunning ? false : !canPlay;
   const logEntries = (timer.logs as any)?.length ? (timer as any).logs : logs;
+  
+  const displayRemainingMs = !isStopwatch && !hasStarted && remainingMs === null
+    ? getInitialRemainingMs(timer.blocks)
+    : remainingMs;
+  
   const primaryTimeValue = isStopwatch
     ? formatElapsed(elapsedMs ?? 0)
-    : formatCountdown(remainingMs ?? 0) ?? "--:--";
+    : formatCountdown(displayRemainingMs ?? 0) ?? "--:--";
 
   if (!isVisible) return null;
 
