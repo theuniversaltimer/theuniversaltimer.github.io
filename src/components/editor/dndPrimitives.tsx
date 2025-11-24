@@ -42,11 +42,25 @@ export const DropZone: React.FC<{
 
 export const DropLine: React.FC = () => <div className="drop-line" />;
 
-export const StandardDropZone: React.FC<{ id: string }> = ({ id }) => (
-  <DropZone id={id} className="relative h-8 my-0 transition-all">
-    {(isOver) => (isOver ? <DropLine /> : null)}
-  </DropZone>
-);
+export const StandardDropZone: React.FC<{ id: string }> = ({ id }) => {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  const expanded = isOver;
+
+  return (
+    <div
+      className={`relative w-full pointer-events-none ${
+        expanded ? "h-12" : "h-0"
+      }`}
+    >
+      <div
+        ref={setNodeRef}
+        className="absolute left-0 right-0 top-0 -translate-y-1/2 h-20 z-10 pointer-events-auto"
+        style={{ touchAction: "none" }}
+      />
+      {expanded ? <DropLine /> : null}
+    </div>
+  );
+};
 
 export const DraggableCard: React.FC<{
   id: string;
@@ -68,7 +82,7 @@ export const DraggableCard: React.FC<{
     if (!target) return false;
     return Boolean(
       target.closest(
-        "input, select, textarea, button, option, [data-no-drag]"
+        "button, [data-no-drag]"
       )
     );
   };

@@ -33,3 +33,19 @@
   min-width: 150px !important;
   box-sizing: border-box !important;
 }
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.block-enter-animation {
+  animation: popIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  transform-origin: center center;
+}

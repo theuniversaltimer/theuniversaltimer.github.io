@@ -388,14 +388,14 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
                 visibility: dragProps?.style?.visibility ?? "visible"
               })
         }}
-        className={`draggable-card pastel-card pastel-hover p-3 w-full ${
+        className={`draggable-card pastel-card pastel-hover p-3 w-full relative z-20 ${
           isActive ? "ring-2 ring-accent-300" : ""
         }`}
         {...dragProps?.attributes}
+        {...dragProps?.listeners}
       >
         <div 
           className="flex items-center justify-between mb-2"
-          {...dragProps?.listeners}
         >
           <span className="text-xs text-accent-400 flex items-center gap-2 cursor-grab select-none">
             {headerLabel}
@@ -580,7 +580,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
                   </DropZone>
                 </div>
               ) : (
-                <div className="rounded-lg bg-accent-50-90 p-2 flex flex-col gap-2">
+                <div className="rounded-lg bg-accent-50-90 p-2 flex flex-col gap-0">
                   <StandardDropZone id={buildDropId("root", "prepend")} />
 
                   {visibleBlocks.map((block, idx) => (
