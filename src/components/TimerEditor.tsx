@@ -48,8 +48,7 @@ import {
   PlaySoundUntilBlockUI,
   NotificationForm
 } from "./editor/blockComponents";
-import { useDispatch, useSelector } from 'react-redux';
-import { updateTimer } from '../store/timersSlice'; // adjust import path if different
+// Removed react-redux usage — parent component handles timer persistence via `onSave`.
 import { useTimerUtils } from '../hooks/useTimerUtils';
 
 // NEW: select timer from store so we can verify post-dispatch state
@@ -665,17 +664,13 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
       ? "Alarm Editor"
       : "Timer Editor";
 
-  const dispatch = useDispatch();
-  const storeTimer = useSelector((s: any) =>
-    timer?.id ? s.timers?.items?.find((t: any) => t.id === timer.id) : undefined
-  );
+  // Parent `onSave` will persist timer changes; remove local store access.
   const { isLikelyStopwatch: checkStopwatch, isPaused, buildRestartPayload } = useTimerUtils();
 
   const handleSave = (edited?: Timer) => {
     const source = edited ?? draft;
 
     if (checkStopwatch(source)) {
-      dispatch(updateTimer({ id: source.id, ...source }));
       initialTimerRef.current = normalizeTimer({ ...source });
       setDraft((d) => ({ ...d, ...source }));
       onSave({ ...source });
@@ -683,24 +678,12 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
     }
 
     const payload = buildRestartPayload(source);
-
     payload.edited = true;
     setDraft((d) => ({ ...d, ...payload }));
-    dispatch(updateTimer(payload));
     savedThisSessionRef.current = String(payload.id);
     appliedEditedForRef.current = String(payload.id);
     initialTimerRef.current = normalizeTimer(payload);
     onSave(payload);
-
-    setTimeout(() => {
-      const latest = storeTimer;
-      if (!latest) return;
-      if (isPaused(latest)) {
-        const forced = buildRestartPayload(latest, Date.now());
-        forced.edited = true;
-        dispatch(updateTimer(forced));
-      }
-    }, 120);
   };
 
 
@@ -842,30 +825,7 @@ const TimerEditor: React.FC<Props> = ({ timer, onBack, onSave, activeBlockId }) 
               )}
             </div>
 
-            <div className="flex-1 flex flex-col gap-2 min-w-0">
-              <p className="text-[11px] uppercase tracking-wide text-accent-300 pl-1">
-                Timer builder
-              </p>
-              <div className="max-h-[530px] overflow-auto" ref={builderRef}>
-                >
-                  {(isOver) => (
-                    <span
-                      className={`text-xs font-medium ${
-                        isOver ? "text-accent-600" : "text-accent-400"
-                      }`}
-                    >
-                      🗑️ Drop to delete
-                    </span>
-                  )}
-                </DropZone>
-              ) : (
-                <aside className="palette-column flex flex-col gap-2 items-stretch">
-                  {sidebarBlocks.map((b) => (
-                    <PaletteItem key={b.blockType} {...b} />
-                  ))}
-                </aside>
-              )}
-            </div>
+            
 
             <div className="flex-1 flex flex-col gap-2 min-w-0">
               <p className="text-[11px] uppercase tracking-wide text-accent-300 pl-1">

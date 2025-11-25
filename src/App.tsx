@@ -240,7 +240,26 @@ const App: React.FC = () => {
   const handleSaveTimer = (draft: Timer) => {
     try {
       const parsed = TimerSchema.parse(draft) as Timer;
-      updateTimer(parsed);
+      // When saving any change to a timer, discard runtime/pause state so
+      // the UI shows the updated initial duration and the Play button.
+      const cleaned: any = { ...parsed };
+      // Clear any running/paused runtime fields so the timer is shown as not-started
+      delete cleaned.startedAt;
+      delete cleaned.remaining;
+      // Ensure paused is false
+      cleaned.paused = false;
+
+      updateTimer(cleaned as Timer);
+
+      // Stop any running instance in the runner and clear hasStarted flag
+      try {
+        stop(parsed.id);
+      } catch {}
+      setHasStartedMap((prev) => {
+        const next = { ...prev } as Record<string, boolean>;
+        next[parsed.id] = false;
+        return next;
+      });
       setPendingNewTimerId((prev) => (prev === draft.id ? null : prev));
       setEditorTimerId(null);
       setTempEditorTimer(null);

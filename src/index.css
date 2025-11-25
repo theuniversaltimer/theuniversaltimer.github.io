@@ -106,7 +106,6 @@
   --accent-600: 240, 240, 245;
   --accent-700: 255, 255, 255;
   --gradient-from: 28, 28, 32;
-
   --gradient-via: 38, 38, 44;
   --gradient-to: 52, 52, 60;
   --shadow-soft: 96, 96, 110;
@@ -626,9 +625,4 @@ body {
 .block-chip-label {
   @apply text-[11px] uppercase tracking-wide;
   color: rgb(var(--accent-400));
-}
-
-/* added: helper class placeholder used by editor state (no visual changes) */
-.editor-restart {
-  /* intentionally empty: presence can be used for debugging/testing */
 }
