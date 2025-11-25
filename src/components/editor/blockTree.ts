@@ -1,7 +1,8 @@
 import {
   Block,
   BlockType,
-  LoopBlock
+  LoopBlock,
+  NotifyUntilBlock
 } from "../../types";
 import { createId } from "../../utils/ids";
 
@@ -24,6 +25,14 @@ const cloneBlock = (block: Block): Block => {
     return {
       ...(block as LoopBlock),
       children: (block as LoopBlock).children.map(cloneBlock)
+    };
+  }
+  if (block.type === "notifyUntil") {
+    return {
+      ...(block as NotifyUntilBlock),
+      children: (block as NotifyUntilBlock).children
+        ? (block as NotifyUntilBlock).children!.map(cloneBlock)
+        : []
     };
   }
   return { ...block };
@@ -97,7 +106,8 @@ export const createDefaultBlock = (type: BlockType): Block => {
         label: "Beep",
         timeoutMs: 10000,
         soundType: "default",
-        interval: 0.2
+        interval: 0.2,
+        children: []
       } as Block;
     case "loop":
     default:
@@ -123,6 +133,12 @@ export const updateBlockTree = (
         children: updateBlockTree((b as LoopBlock).children, id, updater)
       };
     }
+    if (b.type === "notifyUntil") {
+      return {
+        ...(b as NotifyUntilBlock),
+        children: updateBlockTree((b as NotifyUntilBlock).children || [], id, updater)
+      };
+    }
     return b;
   });
 };
@@ -136,6 +152,11 @@ export const deleteBlockTree = (blocks: Block[], id: string): Block[] => {
         ...(b as LoopBlock),
         children: deleteBlockTree((b as LoopBlock).children, id)
       });
+    } else if (b.type === "notifyUntil") {
+      result.push({
+        ...(b as NotifyUntilBlock),
+        children: deleteBlockTree((b as NotifyUntilBlock).children || [], id)
+      });
     } else {
       result.push(b);
     }
@@ -148,6 +169,10 @@ export const findBlockById = (blocks: Block[], id: string): Block | null => {
     if (b.id === id) return b;
     if (b.type === "loop") {
       const found = findBlockById((b as LoopBlock).children, id);
+      if (found) return found;
+    }
+    if (b.type === "notifyUntil") {
+      const found = findBlockById((b as NotifyUntilBlock).children || [], id);
       if (found) return found;
     }
   }
@@ -175,6 +200,15 @@ export const findAndRemove = (
         ...(b as LoopBlock),
         children: result.without
       });
+    } else if (b.type === "notifyUntil") {
+      const result = findAndRemove((b as NotifyUntilBlock).children || [], id);
+      if (result.found && !found) {
+        found = result.found;
+      }
+      without.push({
+        ...(b as NotifyUntilBlock),
+        children: result.without
+      });
     } else {
       without.push(b);
     }
@@ -184,10 +218,14 @@ export const findAndRemove = (
 };
 
 const blockContainsId = (block: Block, id: string): boolean => {
-  if (block.type !== "loop") return false;
-  for (const child of (block as LoopBlock).children) {
+  if (block.type !== "loop" && block.type !== "notifyUntil") return false;
+  const children =
+    block.type === "loop"
+      ? (block as LoopBlock).children
+      : (block as NotifyUntilBlock).children || [];
+  for (const child of children) {
     if (child.id === id) return true;
-    if (child.type === "loop" && blockContainsId(child, id)) {
+    if ((child.type === "loop" || child.type === "notifyUntil") && blockContainsId(child, id)) {
       return true;
     }
   }
@@ -208,11 +246,13 @@ const insertRelative = (
         result.push(newBlock, b);
       } else if (position === "after") {
         result.push(b, newBlock);
-      } else if (position === "inside" && b.type === "loop") {
+      } else if (position === "inside" && (b.type === "loop" || b.type === "notifyUntil")) {
         result.push({
           ...(b as LoopBlock),
-          children: [...(b as LoopBlock).children, newBlock]
-        });
+          ...(b.type === "loop"
+            ? { children: [...(b as LoopBlock).children, newBlock] }
+            : { children: [...((b as NotifyUntilBlock).children || []), newBlock] })
+        } as any);
       } else {
         result.push(b);
       }
@@ -221,6 +261,16 @@ const insertRelative = (
         ...(b as LoopBlock),
         children: insertRelative(
           (b as LoopBlock).children,
+          targetId,
+          newBlock,
+          position
+        )
+      });
+    } else if (b.type === "notifyUntil") {
+      result.push({
+        ...(b as NotifyUntilBlock),
+        children: insertRelative(
+          (b as NotifyUntilBlock).children || [],
           targetId,
           newBlock,
           position

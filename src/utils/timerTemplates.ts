@@ -41,16 +41,21 @@ export const makeNotifyUntil = (
   body: string = "",
   timeoutMs: number = 10000,
   interval: number = 0.2
-): NotifyUntilBlock => ({
-  id: createId(),
-  type: "notifyUntil",
-  title,
-  body,
-   label: "Beep",
-  timeoutMs,
-  soundType: "default",
-  interval
-});
+): NotifyUntilBlock => {
+  const sound = makePlaySoundUntil("Beep", "default");
+  const spacer = makeWait(0.2, "seconds");
+  return {
+    id: createId(),
+    type: "notifyUntil",
+    title,
+    body,
+    label: "Beep",
+    timeoutMs,
+    soundType: "default",
+    interval,
+    children: [sound, spacer]
+  };
+};
 
 export const makeLoop = (repeat: number, children: Block[]): LoopBlock => ({
   id: createId(),

@@ -32,7 +32,7 @@ const TimerCard: React.FC<Props> = ({
     timer.mode === "alarm"
       ? "Alarm"
       : timer.mode === "stopwatch" || timer.mode === "simpleStopwatch"
-      ? "Stopwatch"
+      ? "Timer"
       : "Timer";
   const summaryText =
     timer.mode === "simpleStopwatch"

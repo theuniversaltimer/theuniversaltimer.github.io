@@ -45,7 +45,8 @@ export const NotifyUntilBlockSchema = BlockBase.extend({
   timeoutMs: z.number().optional(),
   soundType: z.enum(["default", "url", "upload", "custom"]).optional(),
   customUrl: z.string().optional(),
-  interval: z.number().optional()
+  interval: z.number().optional(),
+  children: z.lazy(() => BlockSchema.array()).optional()
 });
 
 export const LoopBlockSchema: z.ZodType<any> = BlockBase.extend({
@@ -54,15 +55,17 @@ export const LoopBlockSchema: z.ZodType<any> = BlockBase.extend({
   children: z.lazy(() => BlockSchema.array())
 });
 
-export const BlockSchema = z.union([
-  WaitBlockSchema,
-  WaitUntilBlockSchema,
-  PlaySoundBlockSchema,
-  PlaySoundUntilBlockSchema,
-  NotifyBlockSchema,
-  NotifyUntilBlockSchema,
-  LoopBlockSchema
-]);
+export const BlockSchema: z.ZodType<any> = z.lazy(() =>
+  z.union([
+    WaitBlockSchema,
+    WaitUntilBlockSchema,
+    PlaySoundBlockSchema,
+    PlaySoundUntilBlockSchema,
+    NotifyBlockSchema,
+    NotifyUntilBlockSchema,
+    LoopBlockSchema
+  ])
+);
 
 export const StopwatchLogSchema = z.object({
   id: z.string(),

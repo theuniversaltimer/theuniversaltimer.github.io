@@ -153,10 +153,10 @@ const BlockTree: React.FC<{
           if (block.type === "waitUntil") {
             return formatCountdown(remainingMs);
           }
+
           if (block.type === "notifyUntil") {
             return formatCountdown(remainingMs);
           }
-          
           return null;
         })();
         

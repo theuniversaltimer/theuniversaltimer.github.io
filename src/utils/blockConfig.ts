@@ -48,10 +48,10 @@ export const BLOCK_CONFIGS: Record<string, BlockConfig> = {
     }
   },
   notifyUntil: {
-    label: "Notify Until",
+    label: "Notify",
     getDescription: (block) => {
       const notifyUntil = block as NotifyUntilBlock;
-      return `Notify Until – ${notifyUntil.title || "Notification"}`;
+      return `Notify – ${notifyUntil.title || "Notification"}`;
     },
     supportsCountdown: true,
     getCountdownMs: (block) => {

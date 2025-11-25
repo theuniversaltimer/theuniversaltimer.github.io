@@ -139,19 +139,12 @@ export async function runNotify(
 
 export async function runNotifyUntil(
   block: NotifyUntilBlock,
-  ctx: RunnerContext
+  ctx: RunnerContext,
+  runBlocks: (blocks: Block[]) => Promise<void>
 ): Promise<void> {
   let remainingTimeout = block.timeoutMs ?? 10000;
-  const intervalMs = Math.max(100, Math.round((block.interval ?? 0.5) * 1000));
-  const soundBlock: PlaySoundUntilBlock = {
-    id: `${block.id}-sound`,
-    type: "playSoundUntil",
-    soundType: block.soundType ?? "default",
-    customUrl: block.customUrl,
-    label: block.label || block.title || "Beep"
-  };
-
   let last = Date.now();
+  let userDismissed = false;
 
   const maybeSendNotification = async () => {
     const permission = await requestNotificationPermission();
@@ -161,8 +154,14 @@ export async function runNotifyUntil(
       const body = block.body?.slice(0, 200);
       try {
         const notify = new Notification(title || "Timer", body ? { body } : undefined);
-        notify.onclick = () => ctx.stopAudio();
-        notify.onclose = () => ctx.stopAudio();
+        notify.onclick = () => {
+          userDismissed = true;
+          ctx.stopAudio();
+        };
+        notify.onclose = () => {
+          userDismissed = true;
+          ctx.stopAudio();
+        };
       } catch {}
     }
   };
@@ -170,42 +169,32 @@ export async function runNotifyUntil(
   ctx.updateState(block.id, remainingTimeout);
   await maybeSendNotification();
 
-  while (!ctx.abort() && remainingTimeout > 0) {
+  while (!ctx.abort() && !userDismissed && remainingTimeout > 0) {
     if (ctx.isPaused()) {
       await ctx.waitWhilePaused();
       last = Date.now();
       continue;
     }
 
-    await runPlaySound(soundBlock, ctx);
-    if (ctx.abort()) break;
+    const loopStart = Date.now();
+    const children = block.children || [];
 
-    const afterSound = Date.now();
-    remainingTimeout -= afterSound - last;
-    last = afterSound;
-    if (remainingTimeout <= 0) break;
+    if (children.length) {
+      await runBlocks(children);
+    } else {
+      await sleep(200);
+    }
+
+    if (ctx.abort() || userDismissed) break;
+
+    const now = Date.now();
+    const delta = now - last;
+    remainingTimeout -= delta;
+    last = now;
+
+    if (remainingTimeout <= 0 || userDismissed) break;
 
     ctx.updateState(block.id, Math.max(0, remainingTimeout));
-
-    let intervalRemaining = intervalMs;
-    while (!ctx.abort() && remainingTimeout > 0 && intervalRemaining > 0) {
-      if (ctx.isPaused()) {
-        await ctx.waitWhilePaused();
-        last = Date.now();
-        continue;
-      }
-
-      const sleepFor = Math.min(250, intervalRemaining, remainingTimeout);
-      await sleep(sleepFor);
-
-      const now = Date.now();
-      const delta = now - last;
-      remainingTimeout -= delta;
-      intervalRemaining -= delta;
-      last = now;
-
-      ctx.updateState(block.id, Math.max(0, remainingTimeout));
-    }
   }
 
   ctx.updateState(block.id, null);

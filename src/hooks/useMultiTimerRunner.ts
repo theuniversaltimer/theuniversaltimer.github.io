@@ -314,7 +314,7 @@ export function useMultiTimerRunner() {
           } else if (block.type === "notify") {
             await runNotify(block as NotifyBlock, ctx);
           } else if (block.type === "notifyUntil") {
-            await runNotifyUntil(block as NotifyUntilBlock, ctx);
+            await runNotifyUntil(block as NotifyUntilBlock, ctx, runBlocks);
           } else if (block.type === "loop") {
             await runLoop(block as LoopBlock, ctx, runBlocks);
           }

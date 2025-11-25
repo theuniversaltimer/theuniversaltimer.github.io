@@ -62,6 +62,7 @@ export interface NotifyUntilBlock extends BaseBlock {
   soundType?: "default" | "url" | "upload" | "custom";
   customUrl?: string;
   interval?: number;
+  children?: Block[];
 }
 
 export type Block =

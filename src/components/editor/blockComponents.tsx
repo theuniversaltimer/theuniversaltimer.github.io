@@ -58,7 +58,7 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
   return (
     <>
       <input
-        className="soft-input"
+        className="soft-input w-full"
         placeholder="Notification title"
         value={notification.title || ""}
         onChange={(e) =>
@@ -68,7 +68,7 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
         }
       />
       <textarea
-        className="soft-input min-h-[70px] resize-none"
+        className="soft-input min-h-[70px] resize-none w-full"
         placeholder="Notification message"
         value={notification.body || ""}
         onChange={(e) =>
@@ -79,119 +79,72 @@ export const NotificationForm: React.FC<NotificationFormProps> = ({
       />
 
       {showSoundControls && (
-        <div className="grid grid-cols-[90px,1fr] gap-2 items-start min-w-0">
-          <div className="flex flex-col items-center gap-1">
-            <label className="text-[11px] text-accent-400 text-center w-full">Sound</label>
+        <div className="flex items-center gap-2 flex-nowrap flex-1 min-w-0">
+          <select
+            className="soft-input shrink-0"
+            value={soundType}
+            data-no-drag
+            onChange={(e) => {
+              const newSoundType = e.target.value as "default" | "url" | "upload";
+              mutateBlock(block.id, (prev) => {
+                (prev as any).soundType = newSoundType;
+                if (newSoundType === "default") {
+                  (prev as any).customUrl = "";
+                  (prev as any).label = (prev as any).label || "Beep";
+                }
+              });
+            }}
+          >
+            <option value="default">Default</option>
+            <option value="url">URL</option>
+            <option value="upload">Upload</option>
+          </select>
+
+          {soundType === "default" && (
             <select
-              className="soft-input w-full"
-              value={soundType}
-              onChange={(e) => {
-                const newSoundType = e.target.value as "default" | "url" | "upload";
+              className="soft-input sound-default-select"
+              value={notification.label || "Beep"}
+              data-no-drag
+              onChange={(e) =>
                 mutateBlock(block.id, (prev) => {
-                  (prev as any).soundType = newSoundType;
-                  if (newSoundType === "default") {
-                    (prev as any).customUrl = "";
-                    (prev as any).label = (prev as any).label || "Beep";
-                  }
-                });
-              }}
+                  (prev as any).label = e.target.value;
+                })
+              }
             >
-              <option value="default">Default</option>
-              <option value="url">URL</option>
-              <option value="upload">Upload</option>
+              <option value="Beep">Beep</option>
             </select>
-          </div>
-
-          <div className="flex flex-col min-w-0">
-            <div className="h-5" aria-hidden="true" />
-            <div className="flex items-center min-w-0">
-              {soundType === "default" && (
-                <select
-                  className="soft-input w-full"
-                  value={notification.label || "Beep"}
-                  onChange={(e) =>
-                    mutateBlock(block.id, (prev) => {
-                      (prev as any).label = e.target.value;
-                    })
-                  }
-                >
-                  <option value="Beep">Beep</option>
-                </select>
-              )}
-              {soundType === "url" && (
-                <input
-                  type="text"
-                  className="soft-input w-full"
-                  placeholder="https://example.com/audio.mp3"
-                  value={notification.customUrl || ""}
-                  onChange={(e) =>
-                    mutateBlock(block.id, (prev) => {
-                      (prev as any).customUrl = e.target.value;
-                    })
-                  }
-                />
-              )}
-              {soundType === "upload" && (
-                <AudioDropWrapper
-                  onFile={handleFileSelect}
-                  className="soft-input w-full border-dashed cursor-pointer text-sm text-accent-500"
-                  disabled={!!draggingBlockId}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-accent-500 truncate">
-                      {notification.customUrl
-                        ? notification.label || "Audio file loaded"
-                        : "Upload or drag a sound file"}
-                    </span>
-                    <span className="text-[11px] uppercase tracking-wide text-accent-400">
-                      Choose File
-                    </span>
-                  </div>
-                </AudioDropWrapper>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showTimeoutControls && (
-        <div className="flex gap-2 flex-wrap">
-          <div className="flex flex-col gap-1 items-center">
-            <label className="text-[11px] text-accent-400">Timeout (s)</label>
+          )}
+          {soundType === "url" && (
             <input
-              type="number"
-              min={1}
-              step={1}
-              className="soft-input max-w-[80px]"
-              value={Math.round((notification.timeoutMs ?? 10000) / 1000)}
+              type="text"
+              className="soft-text-input min-w-0"
+              placeholder="https://example.com/audio.mp3"
+              value={notification.customUrl || ""}
+              data-no-drag
               onChange={(e) =>
                 mutateBlock(block.id, (prev) => {
-                  (prev as any).timeoutMs =
-                    Math.max(1000, Number(e.target.value) || 10) * 1000;
+                  (prev as any).customUrl = e.target.value;
                 })
               }
             />
-          </div>
-          <div className="flex flex-col gap-1 items-center">
-            <label className="text-[11px] text-accent-400">Interval (s)</label>
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              className="soft-input max-w-[70px]"
-              value={notification.interval ?? 0.5}
-              onChange={(e) =>
-                mutateBlock(block.id, (prev) => {
-                  (prev as any).interval = Math.max(
-                    0.1,
-                    Number(e.target.value) || 0.5
-                  );
-                })
-              }
-            />
-          </div>
+          )}
+          {soundType === "upload" && (
+            <AudioDropWrapper
+              onFile={handleFileSelect}
+              className="soft-text-input upload-input flex items-center min-w-0 cursor-pointer"
+              disabled={!!draggingBlockId}
+            >
+              <span className="truncate text-sm text-accent-500 w-full text-left">
+                {notification.customUrl
+                  ? notification.label || "Audio file loaded"
+                  : "Upload or drag a sound file"}
+              </span>
+            </AudioDropWrapper>
+          )}
         </div>
       )}
+
+      {/* Timeout/interval fields intentionally omitted per design request */}
     </>
   );
 };
@@ -202,12 +155,14 @@ interface WaitBlockUIProps {
 }
 
 export const WaitBlockUI: React.FC<WaitBlockUIProps> = ({ block, mutateBlock }) => (
-  <div className="flex gap-2 items-center mt-2">
+  <div className="flex items-center gap-2 flex-nowrap">
     <input
       type="number"
       min={0}
-      className="soft-input max-w-[80px]"
+      step={block.unit === "minutes" ? 5 : 1}
+      className="soft-input wait-number"
       value={block.amount}
+      data-no-drag
       onChange={(e) =>
         mutateBlock(block.id, (prev) => {
           (prev as WaitBlock).amount = Number(e.target.value);
@@ -215,8 +170,9 @@ export const WaitBlockUI: React.FC<WaitBlockUIProps> = ({ block, mutateBlock }) 
       }
     />
     <select
-      className="soft-input"
+      className="soft-input wait-unit"
       value={block.unit}
+      data-no-drag
       onChange={(e) =>
         mutateBlock(block.id, (prev) => {
           (prev as WaitBlock).unit = e.target.value as WaitBlock["unit"];
@@ -244,10 +200,11 @@ export const WaitUntilBlockUI: React.FC<WaitUntilBlockUIProps> = ({ block, mutat
   const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
 
   return (
-    <div className="flex gap-2 items-center mt-2">
+    <div className="flex items-center gap-2 flex-nowrap">
       <select
-        className="soft-input max-w-[90px]"
+        className="soft-input wait-time"
         value={hh}
+        data-no-drag
         onChange={(e) =>
           mutateBlock(block.id, (prev) => {
             (prev as WaitUntilBlock).time = `${e.target.value}:${mm}`;
@@ -260,10 +217,10 @@ export const WaitUntilBlockUI: React.FC<WaitUntilBlockUIProps> = ({ block, mutat
           </option>
         ))}
       </select>
-      <span className="text-accent-400">:</span>
       <select
-        className="soft-input max-w-[90px]"
+        className="soft-input wait-time"
         value={mm}
+        data-no-drag
         onChange={(e) =>
           mutateBlock(block.id, (prev) => {
             (prev as WaitUntilBlock).time = `${hh}:${e.target.value}`;
@@ -277,8 +234,9 @@ export const WaitUntilBlockUI: React.FC<WaitUntilBlockUIProps> = ({ block, mutat
         ))}
       </select>
       <select
-        className="soft-input max-w-[70px]"
+        className="soft-input wait-ampm"
         value={block.ampm}
+        data-no-drag
         onChange={(e) =>
           mutateBlock(block.id, (prev) => {
             (prev as WaitUntilBlock).ampm = e.target.value as any;
@@ -327,66 +285,63 @@ export const PlaySoundBlockUI: React.FC<PlaySoundBlockUIProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 mt-2">
-      <div className="flex gap-2 items-center min-w-0">
+    <div className="flex items-center gap-2 flex-nowrap flex-1 min-w-0">
+      <select
+        className="soft-input shrink-0"
+        value={soundType}
+        data-no-drag
+        onChange={(e) =>
+          mutateBlock(block.id, (prev) => {
+            (prev as PlaySoundBlock).soundType = e.target
+              .value as PlaySoundBlock["soundType"];
+          })
+        }
+      >
+        <option value="default">Default</option>
+        <option value="url">URL</option>
+        <option value="upload">Upload</option>
+      </select>
+      
+      {soundType === "default" && (
         <select
-          className="soft-input max-w-[80px]"
-          value={soundType}
+          className="soft-input sound-default-select"
+          value={block.label || "Beep"}
+          data-no-drag
           onChange={(e) =>
             mutateBlock(block.id, (prev) => {
-              (prev as PlaySoundBlock).soundType = e.target
-                .value as PlaySoundBlock["soundType"];
+              (prev as PlaySoundBlock).label = e.target.value;
             })
           }
         >
-          <option value="default">Default</option>
-          <option value="url">URL</option>
-          <option value="upload">Upload</option>
+          <option value="Beep">Beep</option>
         </select>
-        {soundType === "default" && (
-          <select
-            className="soft-input flex-1"
-            value={block.label || "Beep"}
-            onChange={(e) =>
-              mutateBlock(block.id, (prev) => {
-                (prev as PlaySoundBlock).label = e.target.value;
-              })
-            }
-          >
-            <option value="Beep">Beep</option>
-          </select>
-        )}
-        {soundType === "url" && (
-          <input
-            className="soft-input flex-1"
-            placeholder="https://example.com/audio.mp3"
-            value={block.customUrl || ""}
-            onChange={(e) =>
-              mutateBlock(block.id, (prev) => {
-                (prev as PlaySoundBlock).customUrl = e.target.value;
-              })
-            }
-          />
-        )}
-        {soundType === "upload" && (
-          <AudioDropWrapper
-            onFile={handleFileSelect}
-            className="soft-input flex-1 border-dashed cursor-pointer text-sm text-accent-500"
-            disabled={!!draggingBlockId}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-accent-500 truncate">
-                {block.customUrl
-                  ? block.label || "Audio file loaded"
-                  : "Upload or drag a sound file"}
-              </span>
-              <span className="text-[11px] uppercase tracking-wide text-accent-400">
-                Choose File
-              </span>
-            </div>
-          </AudioDropWrapper>
-        )}
-      </div>
+      )}
+      {soundType === "url" && (
+        <input
+          className="soft-text-input min-w-0"
+          placeholder="https://example.com/audio.mp3"
+          value={block.customUrl || ""}
+          data-no-drag
+          onChange={(e) =>
+            mutateBlock(block.id, (prev) => {
+              (prev as PlaySoundBlock).customUrl = e.target.value;
+            })
+          }
+        />
+      )}
+      {soundType === "upload" && (
+        <AudioDropWrapper
+          onFile={handleFileSelect}
+          className="soft-text-input upload-input flex items-center min-w-0 cursor-pointer"
+          disabled={!!draggingBlockId}
+        >
+          <span className="truncate text-sm text-accent-500 w-full text-left">
+            {block.customUrl
+              ? block.label || "Audio file loaded"
+              : "Upload or drag a sound file"}
+          </span>
+        </AudioDropWrapper>
+      )}
     </div>
   );
 };
@@ -426,70 +381,63 @@ export const PlaySoundUntilBlockUI: React.FC<PlaySoundUntilBlockUIProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 mt-2">
-      <div className="flex gap-2 items-center min-w-0">
+    <div className="flex items-center gap-2 flex-nowrap flex-1 min-w-0">
+      <select
+        className="soft-input shrink-0"
+        value={soundType}
+        data-no-drag
+        onChange={(e) =>
+          mutateBlock(block.id, (prev) => {
+            (prev as PlaySoundUntilBlock).soundType = e.target
+              .value as PlaySoundUntilBlock["soundType"];
+          })
+        }
+      >
+        <option value="default">Default</option>
+        <option value="url">URL</option>
+        <option value="upload">Upload</option>
+      </select>
+      
+      {soundType === "default" && (
         <select
-          className="soft-input max-w-[80px]"
-          value={soundType}
+          className="soft-input sound-default-select"
+          value={block.label || "Beep"}
+          data-no-drag
           onChange={(e) =>
             mutateBlock(block.id, (prev) => {
-              (prev as PlaySoundUntilBlock).soundType = e.target
-                .value as PlaySoundUntilBlock["soundType"];
+              (prev as PlaySoundUntilBlock).label = e.target.value;
             })
           }
         >
-          <option value="default">Default</option>
-          <option value="url">URL</option>
-          <option value="upload">Upload</option>
+          <option value="Beep">Beep</option>
         </select>
-        {soundType === "default" && (
-          <select
-            className="soft-input flex-1"
-            value={block.label || "Beep"}
-            onChange={(e) =>
-              mutateBlock(block.id, (prev) => {
-                (prev as PlaySoundUntilBlock).label = e.target.value;
-              })
-            }
-          >
-            <option value="Beep">Beep</option>
-          </select>
-        )}
-        {soundType === "url" && (
-          <input
-            className="soft-input flex-1"
-            placeholder="https://example.com/audio.mp3"
-            value={block.customUrl || ""}
-            onChange={(e) =>
-              mutateBlock(block.id, (prev) => {
-                (prev as PlaySoundUntilBlock).customUrl = e.target.value;
-              })
-            }
-          />
-        )}
-        {soundType === "upload" && (
-          <AudioDropWrapper
-            onFile={handleFileSelect}
-            className="soft-input flex-1 border-dashed cursor-pointer text-sm text-accent-500"
-            disabled={!!draggingBlockId}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-accent-500 truncate">
-                {block.customUrl
-                  ? block.label || "Audio file loaded"
-                  : "Upload or drag a sound file"}
-              </span>
-              <span className="text-[11px] uppercase tracking-wide text-accent-400">
-                Choose File
-              </span>
-            </div>
-          </AudioDropWrapper>
-        )}
-      </div>
-
-      <p className="text-[11px] text-accent-400 mt-1">
-        Plays once and continues after the sound finishes.
-      </p>
+      )}
+      {soundType === "url" && (
+        <input
+          className="soft-text-input min-w-0"
+          placeholder="https://example.com/audio.mp3"
+          value={block.customUrl || ""}
+          data-no-drag
+          onChange={(e) =>
+            mutateBlock(block.id, (prev) => {
+              (prev as PlaySoundUntilBlock).customUrl = e.target.value;
+            })
+          }
+        />
+      )}
+      {soundType === "upload" && (
+        <AudioDropWrapper
+          onFile={handleFileSelect}
+          className="soft-text-input upload-input flex items-center min-w-0 cursor-pointer"
+          disabled={!!draggingBlockId}
+        >
+          <span className="truncate text-sm text-accent-500 w-full text-left">
+            {block.customUrl
+              ? block.label || "Audio file loaded"
+              : "Upload or drag a sound file"}
+          </span>
+        </AudioDropWrapper>
+      )}
     </div>
   );
 };

@@ -96,31 +96,6 @@ const StopwatchEditor: React.FC<Props> = ({ timer, onBack, onSave }) => {
               {timer.name || "Stopwatch"}
             </h2>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleExport}
-            className="soft-button bg-accent-100 text-accent-500 hover:bg-accent-200 text-xs px-3 py-2 shrink-0"
-            aria-label="Export stopwatch"
-            title="Export stopwatch"
-          >
-            Export
-          </button>
-            <button
-              type="button"
-              onClick={handleBack}
-              className="soft-button bg-accent-50 hover:bg-accent-100 text-accent-500"
-            >
-              Back
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="soft-button-primary"
-            >
-              Save
-            </button>
-          </div>
         </div>
 
         <div className="flex flex-col gap-4">
@@ -151,7 +126,7 @@ const StopwatchEditor: React.FC<Props> = ({ timer, onBack, onSave }) => {
                 No logs yet. Press Mark in the play menu to add one.
               </p>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
                 {logs
                   .slice()
                   .sort((a, b) => b.loggedAt - a.loggedAt)
@@ -188,6 +163,36 @@ const StopwatchEditor: React.FC<Props> = ({ timer, onBack, onSave }) => {
                   ))}
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center mt-6 gap-2">
+          <div>
+            <button
+              type="button"
+              onClick={handleBack}
+              className="soft-button-primary"
+            >
+              Back
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="soft-button-primary"
+              aria-label="Export stopwatch"
+              title="Export stopwatch"
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="soft-button-primary"
+            >
+              Save
+            </button>
           </div>
         </div>
       </div>

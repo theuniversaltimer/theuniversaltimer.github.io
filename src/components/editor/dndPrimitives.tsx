@@ -16,7 +16,7 @@ export const getBlockLabel = (type: BlockType): string => {
     case "playSound": return "Play Sound";
     case "playSoundUntil": return "Play Sound Until";
     case "notify": return "Notify";
-    case "notifyUntil": return "Notify Until";
+    case "notifyUntil": return "Notify For";
     case "loop": return "Loop";
     default: return "Block";
   }
