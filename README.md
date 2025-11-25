@@ -1,23 +1,31 @@
 # Universal Timer
 
 A flexible, visual timer and alarm app built with React and TypeScript. Perfect for everything from simple alarms to Pomodoro timers.  
+No paywalls, no trials, no ads.
 
 **Try it out:** [Live Demo](https://theuniversaltimer.github.io)
 
 ---
 
 ## Features
-**Flexible CRUD Editor:** Drag, drop, and reorder blocks to customize your timers.  
-**Templates:** Get started quickly without learning the editor.  
-**Block Types:**
-**Wait:** Pause for a set duration  
-  **Wait Until:** Pause until a specific time  
-  **Play Sound:** Play an audio clip  
-  **Play Sound Until:** Play audio and wait until it finishes  
-  **Notify:** Show desktop notifications  
-  **Notify Until:** Notifications with timeout and repeat options  
-  **Loop:** Repeat blocks a set number of times or indefinitely  
-**Themes:** Choose from multiple color themes  
+
+**Drag-and-drop editor**  
+Build timers by moving and reordering blocks.
+
+**Quick-start templates**  
+Pick a preset and start. No learning curve.
+
+**Timer blocks**  
+- **Wait**
+- **Wait Until**
+- **Play Sound**
+- **Play Sound Until**
+- **Notify**
+- **Notify (repeating)**
+- **Loop**
+
+**Themes**  
+Switch up the vibe with multiple color themes.
 
 ---
 
