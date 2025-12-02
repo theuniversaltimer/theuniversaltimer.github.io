@@ -3,7 +3,7 @@
 A flexible, visual timer and alarm app built with React and TypeScript. Perfect for everything from simple alarms to Pomodoro timers.  
 No paywalls, no trials, no ads.
 
-**Try it out:** [Live Demo](https://theuniversaltimer.github.io)
+**Try it out!:** [(https://theuniversaltimer.github.io)](https://theuniversaltimer.github.io)
 
 ---
 
